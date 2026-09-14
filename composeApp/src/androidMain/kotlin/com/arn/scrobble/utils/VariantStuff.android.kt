@@ -1,8 +1,11 @@
 package com.arn.scrobble.utils
 
 import com.arn.scrobble.VariantStuffInterface
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 private val lastLicenseCheckTimeFile
     get() =
@@ -22,4 +25,13 @@ actual val VariantStuff: VariantStuffInterface = AndroidExtrasVariantStuff(
     deviceIdentifier = PlatformStuff::getDeviceIdentifier,
     openInBrowser = PlatformStuff::openInBrowser,
     context = AndroidStuff.applicationContext
-)
+).also {
+    Stuff.appScope.launch {
+        PlatformStuff.mainPrefs.data
+            .map { it.bypassProLock }
+            .distinctUntilChanged()
+            .collect { bypass ->
+                it.billingRepository.bypassProLock.value = bypass
+            }
+    }
+}

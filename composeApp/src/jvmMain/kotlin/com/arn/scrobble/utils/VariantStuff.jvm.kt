@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 actual val VariantStuff = object : VariantStuffInterface {
     override val billingRepository: BaseBillingRepository = BillingRepository(
@@ -35,4 +36,15 @@ actual val VariantStuff = object : VariantStuffInterface {
 
     override val githubApiUrl: String =
         "https://api.github.com/repos/kawaiiDango/pano-scrobbler/releases/latest"
+
+    init {
+        Stuff.appScope.launch {
+            PlatformStuff.mainPrefs.data
+                .map { it.bypassProLock }
+                .distinctUntilChanged()
+                .collect { bypass ->
+                    billingRepository.bypassProLock.value = bypass
+                }
+        }
+    }
 }

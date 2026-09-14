@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.map
 
 actual suspend fun AppListVM.load(
     packagesOverride: Set<String>?,
+    useCache: Boolean,
+    forceRefresh: Boolean,
     onSetAppList: (AppList) -> Unit,
     onSetHostnames: (List<String>) -> Unit,
     onSetBlockedHostnames: (Set<String>) -> Unit,

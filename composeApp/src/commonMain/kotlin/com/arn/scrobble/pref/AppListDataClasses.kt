@@ -37,6 +37,7 @@ data class AppItem(
     }
 }
 
+@Serializable
 data class AppList(
     val musicPlayers: List<AppItem> = emptyList(),
     val otherApps: List<AppItem> = emptyList()

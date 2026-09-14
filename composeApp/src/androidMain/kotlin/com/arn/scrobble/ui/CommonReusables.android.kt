@@ -14,7 +14,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
+import com.arn.scrobble.icons.Icons
+import com.arn.scrobble.icons.Person
 import com.arn.scrobble.pref.AppItem
 
 @Composable
@@ -66,4 +69,20 @@ actual fun AppIcon(
 
 actual fun Modifier.testTagsAsResId() = semantics {
     testTagsAsResourceId = true
+}
+
+@Composable
+actual fun AvatarImage(
+    avatarUrl: String,
+    contentDescription: String?,
+    modifier: Modifier,
+) {
+    AsyncImage(
+        model = avatarUrl,
+        error = placeholderImageVectorPainter(null, Icons.Person),
+        placeholder = placeholderPainter(),
+        contentDescription = contentDescription,
+        modifier = modifier,
+        contentScale = ContentScale.Crop,
+    )
 }

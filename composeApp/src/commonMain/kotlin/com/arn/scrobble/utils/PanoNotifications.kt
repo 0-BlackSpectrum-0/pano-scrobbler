@@ -13,6 +13,8 @@ expect object PanoNotifications {
 
     suspend fun notifyAppDetected(appId: String, appLabel: String)
 
+    suspend fun notifyTemporaryScrobble(notiKey: String, scrobbleData: ScrobbleData, hash: Int)
+
     suspend fun notifyUnscrobbled(notiKey: String, scrobbleData: ScrobbleData, hash: Int)
 
     suspend fun notifyDigest(lastfmPeriod: LastfmPeriod, title: String, text: String)

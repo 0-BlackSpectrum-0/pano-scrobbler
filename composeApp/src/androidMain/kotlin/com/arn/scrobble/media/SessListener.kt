@@ -51,6 +51,8 @@ class SessListener(
 
     private val blockedPackages =
         mainPrefs.data.stateInWithCache(scope) { it.blockedPackages }
+    private val temporaryScrobblePackages =
+        mainPrefs.data.stateInWithCache(scope) { it.temporaryScrobblePackages }
 
     init {
         scope.launch {
@@ -58,8 +60,9 @@ class SessListener(
                 allowedPackages,
                 blockedPackages,
                 autoDetectApps,
+                temporaryScrobblePackages,
 //                scrobblerEnabled, // now done directly in NLService
-            ) { allowed, blocked, autoDetect ->
+            ) { allowed, blocked, autoDetect, tempApps ->
                 onActiveSessionsChanged(platformControllers)
                 val tokensToKeep = sessionTrackers
                     .filter { (k, v) ->
@@ -74,6 +77,7 @@ class SessListener(
     override fun shouldScrobble(rawAppId: String): Boolean {
         val should = scrobblerEnabled.value &&
                 (rawAppId in allowedPackages.value ||
+                        rawAppId in temporaryScrobblePackages.value ||
                         (autoDetectApps.value && rawAppId !in blockedPackages.value && autoDetectAppsNotiEnbled))
         return should
     }
@@ -216,7 +220,7 @@ class SessListener(
         }
 
         override fun onBeforeScrobble() {
-            if (trackInfo.appId !in allowedPackages.value) {
+            if (trackInfo.appId !in allowedPackages.value && trackInfo.appId !in temporaryScrobblePackages.value) {
                 scope.launch {
                     PanoNotifications.notifyAppDetected(
                         trackInfo.appId,

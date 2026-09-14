@@ -7,9 +7,11 @@ import com.arn.scrobble.api.ScrobbleEverywhere
 import com.arn.scrobble.api.ScrobbleResult
 import com.arn.scrobble.api.lastfm.ScrobbleData
 import com.arn.scrobble.db.BlockedMetadata
+import com.arn.scrobble.utils.PanoNotifications
 import com.arn.scrobble.utils.PlatformStuff
 import com.arn.scrobble.utils.Stuff
 import com.arn.scrobble.utils.redactedMessage
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -18,6 +20,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.compose.resources.getString
 import pano_scrobbler.composeapp.generated.resources.Res
@@ -32,6 +35,19 @@ class ScrobbleQueue(
 ) {
     // delays scrobbling this hash until it becomes null again
     private var lockedHash: Int? = null
+
+    private val temporaryApprovals = mutableMapOf<Int, CompletableDeferred<Boolean>>()
+    private val approvedTemporaryScrobbles = mutableSetOf<Int>()
+
+    fun resolveTemporaryScrobble(hash: Int, approved: Boolean) {
+        if (approved) {
+            approvedTemporaryScrobbles.add(hash)
+            temporaryApprovals.remove(hash)?.complete(true)
+        } else {
+            temporaryApprovals.remove(hash)?.complete(false)
+            remove(hash)
+        }
+    }
 
     private val tickEveryMs = 500L
 
@@ -171,16 +187,50 @@ class ScrobbleQueue(
             )
         }
 
-        notifyPlayingTrackEvent(
-            trackInfo.toTrackPlayingEvent().copy(
-                scrobbleData = scrobbleData,
-                nowPlaying = true,
+        val isTemporary = runBlocking {
+            PlatformStuff.mainPrefs.data.map { it.temporaryScrobblePackages }.first().contains(trackInfo.appId)
+        }
+        val needsApproval = isTemporary && !approvedTemporaryScrobbles.contains(hash)
+
+        if (needsApproval) {
+            val deferred = CompletableDeferred<Boolean>()
+            temporaryApprovals[hash] = deferred
+            scope.launch {
+                PanoNotifications.notifyTemporaryScrobble(
+                    notiKey = trackInfo.notiKey,
+                    scrobbleData = scrobbleData,
+                    hash = hash
+                )
+            }
+        } else {
+            notifyPlayingTrackEvent(
+                trackInfo.toTrackPlayingEvent().copy(
+                    scrobbleData = scrobbleData,
+                    nowPlaying = true,
+                )
             )
-        )
+        }
 
         prune()
         scrobbleTasks[trackInfo.hash]?.cancel()
         scrobbleTasks[trackInfo.hash] = scope.launch(Dispatchers.IO) {
+            if (needsApproval) {
+                val deferred = temporaryApprovals[hash]
+                val approved = deferred?.await() ?: false
+                if (!approved) {
+                    trackInfo.cancelled()
+                    PanoNotifications.removeNotificationByKey(trackInfo.notiKey)
+                    return@launch
+                }
+                PanoNotifications.removeNotificationByKey(trackInfo.notiKey)
+                notifyPlayingTrackEvent(
+                    trackInfo.toTrackPlayingEvent().copy(
+                        scrobbleData = scrobbleData,
+                        nowPlaying = true,
+                    )
+                )
+            }
+
             // some players put the previous song and then switch to the current song in like 150ms
             // potentially wasting an api call. sleep and throw cancellation exception in that case
             delay(Stuff.META_WAIT.milliseconds)
@@ -322,6 +372,7 @@ class ScrobbleQueue(
             return
         }
 
+        temporaryApprovals.remove(hash)?.complete(false)
         if (scrobbleTasks.remove(hash)?.cancel() != null) {
             Logger.d { "${hash.toHexString()} cancelled" }
         }

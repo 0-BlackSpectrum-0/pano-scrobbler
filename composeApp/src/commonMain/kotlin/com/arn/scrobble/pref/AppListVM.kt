@@ -16,7 +16,8 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class AppListVM(
     preSelectedPackages: Set<String>,
-    packageListOverride: Set<String>?
+    private val packageListOverride: Set<String>?,
+    val useCache: Boolean = false,
 ) : ViewModel() {
     private val _appList = MutableStateFlow(AppList())
     val appList = _appList.asStateFlow()
@@ -76,6 +77,23 @@ class AppListVM(
         viewModelScope.launch {
             load(
                 packagesOverride = packageListOverride,
+                useCache = useCache,
+                forceRefresh = false,
+                onSetAppList = { _appList.value = it },
+                onSetHostnames = { _hostnames.value = it },
+                onSetBlockedHostnames = { _blockedHostnames.value = it },
+                onSetHasLoaded = { _hasLoaded.value = true },
+            )
+        }
+    }
+
+    fun refreshAppList() {
+        viewModelScope.launch {
+            _hasLoaded.value = false
+            load(
+                packagesOverride = packageListOverride,
+                useCache = false,
+                forceRefresh = true,
                 onSetAppList = { _appList.value = it },
                 onSetHostnames = { _hostnames.value = it },
                 onSetBlockedHostnames = { _blockedHostnames.value = it },
@@ -165,6 +183,8 @@ class AppListVM(
 
 expect suspend fun AppListVM.load(
     packagesOverride: Set<String>?,
+    useCache: Boolean = false,
+    forceRefresh: Boolean = false,
     onSetAppList: (AppList) -> Unit,
     onSetHostnames: (List<String>) -> Unit,
     onSetBlockedHostnames: (Set<String>) -> Unit,

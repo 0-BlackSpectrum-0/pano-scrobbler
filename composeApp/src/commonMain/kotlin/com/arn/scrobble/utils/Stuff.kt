@@ -182,6 +182,7 @@ object Stuff {
 
     const val CHANNEL_NOTI_SCROBBLING = "noti_scrobbling"
     const val CHANNEL_NOTI_NEW_APP = "noti_new_app"
+    const val CHANNEL_NOTI_TEMP_SCROBBLE = "noti_temp_scrobble"
     const val CHANNEL_NOTI_DIGEST_WEEKLY = "noti_digest_weekly"
     const val CHANNEL_NOTI_DIGEST_MONTHLY = "noti_digest_monthly"
     const val CHANNEL_NOTI_FGS = "noti_fgs"

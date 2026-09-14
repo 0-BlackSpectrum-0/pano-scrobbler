@@ -13,38 +13,9 @@ object LocaleUtils {
 
     // localesSet start
     val localesMap = mapOf(
-        "ca" to "català",
-        "de" to "Deutsch",
         "en" to "English",
-        "es" to "español",
-        "fr" to "français",
-        "hr" to "hrvatski",
-        "id" to "Indonesia",
-        "it" to "italiano",
-        "lt" to "lietuvių",
-        "ms" to "Melayu",
-        "nl" to "Nederlands",
-        "pl" to "polski",
-        "pt" to "português",
-        "pt-BR" to "português Brasil",
-        "ro" to "română",
-        "fi" to "suomi",
-        "sv" to "svenska",
-        "tl" to "Tagalog",
-        "vi" to "Tiếng Việt",
-        "tr" to "Türkçe",
-        "cs" to "čeština",
-        "el" to "Ελληνικά",
-        "ru" to "русский",
-        "uk" to "українська",
-        "he" to "עברית",
-        "ar" to "العربية",
-        "fa" to "فارسی",
-        "ne" to "नेपाली",
         "hi" to "हिन्दी",
-        "zh-Hans" to "中文 简体",
-        "ja" to "日本語",
-        "ko" to "한국어"
+        "ja" to "日本語"
     )
     // localesSet end
 

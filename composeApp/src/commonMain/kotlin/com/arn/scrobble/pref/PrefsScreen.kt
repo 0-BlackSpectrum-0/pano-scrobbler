@@ -172,6 +172,7 @@ fun PrefsScreen(
     val scrobblerEnabled by mainPrefs.data.collectAsStateWithInitialValue { it.scrobblerEnabled }
     val scrobblerPausedTill by mainPrefs.data.collectAsStateWithInitialValue { it.scrobblerPausedTill }
     val allowedPackages by mainPrefs.data.collectAsStateWithInitialValue { it.allowedPackages }
+    val temporaryScrobblePackages by mainPrefs.data.collectAsStateWithInitialValue { it.temporaryScrobblePackages }
     val scrobbleSpotifyRemoteP by mainPrefs.data.collectAsStateWithInitialValue { it.scrobbleSpotifyRemoteP }
     val autoDetectApps by mainPrefs.data.collectAsStateWithInitialValue { it.autoDetectApps }
     val delayPercent by mainPrefs.data.collectAsStateWithInitialValue { it.delayPercentP }
@@ -538,6 +539,29 @@ fun PrefsScreen(
                 )
                 Text(
                     text = "ⓘ " + stringResource(Res.string.pref_enabled_apps_summary),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(ListItemDefaults.ContentPadding)
+                )
+            }
+        }
+
+        filteredItem("temporary_scrobble_apps", Res.string.pref_scrobble_from) { _ ->
+            Column(Modifier.fillMaxWidth()) {
+                AppIconsPref(
+                    packageNames = temporaryScrobblePackages,
+                    title = "Ask for temporary scrobble, apps",
+                    onClick = {
+                        onNavigate(
+                            PanoRoute.AppList(
+                                saveType = AppListSaveType.TemporaryScrobble,
+                                preSelectedPackages = temporaryScrobblePackages.toList(),
+                                isSingleSelect = false,
+                            )
+                        )
+                    }
+                )
+                Text(
+                    text = "ⓘ When these apps play, a silent notification asks whether to scrobble.",
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(ListItemDefaults.ContentPadding)
                 )
@@ -1032,6 +1056,16 @@ fun PrefsScreen(
                     locked = !isLicenseValid,
                 )
             }
+        }
+
+        filteredItem("bypass_pro_lock", Res.string.pref_misc) { _ ->
+            val bypassPro by mainPrefs.data.collectAsStateWithInitialValue { it.bypassProLock }
+            SwitchPref(
+                text = "Bypass Pro Lock",
+                summary = "Unlock all pro features for testing",
+                value = bypassPro,
+                copyToSave = { copy(bypassProLock = it) }
+            )
         }
 
         if (CrashReporterConfig.isAvailable) {

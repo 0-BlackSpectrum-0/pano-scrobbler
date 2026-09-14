@@ -35,6 +35,9 @@ actual object PanoNotifications {
         )
     }
 
+    actual suspend fun notifyTemporaryScrobble(notiKey: String, scrobbleData: ScrobbleData, hash: Int) {
+    }
+
     actual suspend fun notifyUnscrobbled(notiKey: String, scrobbleData: ScrobbleData, hash: Int) {
         removeNotificationByKey(notiKey)
     }

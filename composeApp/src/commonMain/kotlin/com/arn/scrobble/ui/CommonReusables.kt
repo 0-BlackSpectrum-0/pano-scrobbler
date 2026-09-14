@@ -866,10 +866,8 @@ fun AvatarOrInitials(
     initials: String? = null, // null is default parsing method
 ) {
     if (!avatarUrl.isNullOrEmpty()) {
-        AsyncImage(
-            model = avatarUrl,
-            error = placeholderImageVectorPainter(null, Icons.Person),
-            placeholder = placeholderPainter(),
+        AvatarImage(
+            avatarUrl = avatarUrl,
             contentDescription = stringResource(Res.string.profile_pic),
             modifier = modifier,
         )
@@ -902,6 +900,13 @@ fun AvatarOrInitials(
         }
     }
 }
+
+@Composable
+expect fun AvatarImage(
+    avatarUrl: String,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+)
 
 @Composable
 fun ListLoadError(

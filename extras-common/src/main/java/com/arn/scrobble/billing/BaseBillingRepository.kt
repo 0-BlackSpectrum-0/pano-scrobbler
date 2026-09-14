@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
@@ -21,6 +23,7 @@ abstract class BaseBillingRepository {
     val licenseError = _licenseError.asSharedFlow()
     abstract val purchaseMethods: List<PurchaseMethod>
     abstract val needsActivationCode: Boolean
+    val bypassProLock = MutableStateFlow(false)
     val licenseState by lazy {
         receipt.map { (receipt, signature) ->
             withContext(Dispatchers.IO) {
@@ -33,6 +36,9 @@ abstract class BaseBillingRepository {
                 }
             }
         }
+            .combine(bypassProLock) { state, bypass ->
+                if (bypass) LicenseState.VALID else state
+            }
             .stateIn(scope, SharingStarted.Lazily, LicenseState.UNKNOWN)
     }
 

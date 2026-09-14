@@ -384,6 +384,71 @@ actual object PanoNotifications {
         notificationManager.notify(Stuff.CHANNEL_NOTI_NEW_APP, NOTI_ID, n)
     }
 
+    actual suspend fun notifyTemporaryScrobble(
+        notiKey: String,
+        scrobbleData: ScrobbleData,
+        hash: Int
+    ) {
+        val approveEvent = PlayingTrackNotifyEvent.TemporaryScrobbleDecision(
+            hash = hash,
+            notiKey = notiKey,
+            approved = true
+        )
+        val rejectEvent = PlayingTrackNotifyEvent.TemporaryScrobbleDecision(
+            hash = hash,
+            notiKey = notiKey,
+            approved = false
+        )
+
+        val approveIntent = PlayingTrackEventReceiver.createIntent(context, approveEvent)
+        val approvePi = PendingIntent.getBroadcast(
+            context,
+            hash * 2,
+            approveIntent,
+            AndroidStuff.updateCurrentOrImmutable
+        )
+
+        val rejectIntent = PlayingTrackEventReceiver.createIntent(context, rejectEvent)
+        val rejectPi = PendingIntent.getBroadcast(
+            context,
+            hash * 2 + 1,
+            rejectIntent,
+            AndroidStuff.updateCurrentOrImmutable
+        )
+
+        val n = Notification.Builder(context)
+            .setChannelIdCompat(Stuff.CHANNEL_NOTI_TEMP_SCROBBLE)
+            .setGroup(Stuff.GROUP_NOTI_SCROBBLES)
+            .setShowWhen(false)
+            .setColor(notiColor)
+            .setCustomBigContentView(null)
+            .setContentTitle("Do you want to scrobble this?")
+            .setContentText("${scrobbleData.artist} - ${scrobbleData.track}")
+            .setSmallIcon(R.drawable.vd_appquestion_noti)
+            .addAction(
+                buildNotificationAction(
+                    R.drawable.vd_ban,
+                    "🚫",
+                    getString(Res.string.no),
+                    rejectPi
+                )
+            )
+            .addAction(
+                buildNotificationAction(
+                    R.drawable.vd_check,
+                    "✔",
+                    getString(Res.string.yes),
+                    approvePi
+                )
+            )
+            .setStyle(
+                Notification.MediaStyle().setShowActionsInCompactView(0, 1)
+            )
+            .setAutoCancel(true)
+            .build()
+        notificationManager.notify(notiKey, NOTI_ID, n)
+    }
+
 
     actual suspend fun notifyUnscrobbled(notiKey: String, scrobbleData: ScrobbleData, hash: Int) {
         val delayTime = 4000L
@@ -717,6 +782,13 @@ actual object PanoNotifications {
                 R.string.new_player,
                 context.getString(R.string.new_app)
             ),
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            group = Stuff.GROUP_NOTI_SCROBBLES
+        }
+        channels += NotificationChannel(
+            Stuff.CHANNEL_NOTI_TEMP_SCROBBLE,
+            "Temporary scrobbles",
             NotificationManager.IMPORTANCE_LOW
         ).apply {
             group = Stuff.GROUP_NOTI_SCROBBLES

@@ -102,6 +102,13 @@ sealed interface PlayingTrackNotifyEvent {
         val hash: Int,
         val artUrl: String,
     ) : PlayingTrackNotifyEvent
+
+    @Serializable
+    data class TemporaryScrobbleDecision(
+        val hash: Int,
+        val notiKey: String,
+        val approved: Boolean,
+    ) : PlayingTrackNotifyEvent
 }
 
 val globalTrackEventFlow by lazy { MutableSharedFlow<PlayingTrackNotifyEvent>(extraBufferCapacity = 10) }
@@ -269,6 +276,11 @@ suspend fun listenForPlayingTrackEvents(
                 }
 
                 PanoNotifications.removeNotificationByKey(Stuff.CHANNEL_NOTI_NEW_APP)
+            }
+
+            is PlayingTrackNotifyEvent.TemporaryScrobbleDecision -> {
+                PanoNotifications.removeNotificationByKey(event.notiKey)
+                scrobbleQueue.resolveTemporaryScrobble(event.hash, event.approved)
             }
 
             is PlayingTrackNotifyEvent.ArtUrlFetched -> {

@@ -1,0 +1,149 @@
+name: Build Binaries (Fork)
+on:
+  push:
+    branches:
+      - fork-version
+  workflow_dispatch:
+    inputs:
+      upload-release:
+        type: boolean
+        description: 'Upload to GitHub Releases?'
+        required: false
+        default: false
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ windows-2025-vs2026, ubuntu-24.04 ]
+        include:
+          - os: windows-2025-vs2026
+            os-name: windows
+            arch: x64
+          - os: ubuntu-24.04
+            os-name: linux
+            arch: x64
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fix permissions
+        if: matrix.os-name == 'linux'
+        shell: bash
+        run: |
+          chmod +x ./gradlew
+
+      - name: Set up common secrets
+        shell: bash
+        run: |
+          echo "${{ secrets.LOCAL_PROPERTIES }}" > local.properties
+
+      - if: matrix.os-name == 'linux' && matrix.arch == 'x64'
+        name: Set up Android secrets
+        shell: bash
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_JKS }}" | base64 -d - > androidApp/android-keystore.jks
+
+      - if: matrix.os-name == 'linux' && matrix.arch == 'x64'
+        name: Update Android package name to org.blackspectrum.scrobbler
+        shell: bash
+        run: |
+          sed -i 's/set("APP_ID", "com.arn.scrobble")/set("APP_ID", "org.blackspectrum.scrobbler")/g' build.gradle.kts
+
+      - if: matrix.os-name == 'linux' && matrix.arch == 'x64'
+        name: Build APK
+        shell: bash
+        run: |
+          export JAVA_HOME=$JAVA_HOME_25_X64
+          $ANDROID_HOME/cmdline-tools/**/bin/sdkmanager --update
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --list_installed
+          ./gradlew androidApp:assembleReleaseGithub --no-daemon
+
+      - if: matrix.os-name == 'linux' && matrix.arch == 'x64'
+        name: Upload .apk
+        uses: actions/upload-artifact@v4
+        with:
+          name: pano-scrobbler-android-universal
+          path: dist/pano-scrobbler-android-universal.apk
+
+      - name: Install GraalVM CE
+        uses: graalvm/setup-graalvm@v1
+        with:
+          version: '25'
+          distribution: 'graalvm-community'
+          github-token: ${{ github.token }}
+
+      - name: Download native libraries
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_ID=$(gh run list \
+            -R "kawaiiDango/pano-native-components" \
+            --workflow "build.yml" \
+            --status success \
+            -L 1 \
+            --json databaseId \
+            -q '.[0].databaseId')
+
+          if [ -z "$RUN_ID" ]; then
+            echo "No successful runs found" >&2
+            exit 1
+          fi
+
+          gh run download "$RUN_ID" -R "kawaiiDango/pano-native-components" -n "libs-${{ matrix.os-name }}-${{ matrix.arch }}" -D desktopApp/resources/${{ matrix.os-name }}-${{ matrix.arch }}
+
+      - name: Install Inno Setup
+        if: matrix.os-name == 'windows'
+        shell: bash
+        run: |
+          winget install --id JRSoftware.InnoSetup.7 --accept-package-agreements --accept-source-agreements --disable-interactivity
+
+      - name: Download AppImageTool
+        if: matrix.os-name == 'linux'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          arch=$(uname -m)
+          appImageToolFile="$HOME/appimagetool-$arch.AppImage"
+          gh release download continuous \
+            --repo AppImage/appimagetool \
+            --pattern "appimagetool-$arch.AppImage" \
+            --output "$appImageToolFile"
+          chmod +x "$appImageToolFile"
+
+      - name: Build desktop jar and native image
+        shell: bash
+        run: |
+          ./gradlew desktopApp:packageNativeImage --no-daemon
+
+      - if: matrix.os-name == 'linux'
+        name: Upload Linux AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: pano-scrobbler-linux-appimage
+          path: dist/*.AppImage
+
+      - if: matrix.os-name == 'linux'
+        name: Upload Linux deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: pano-scrobbler-linux-deb
+          path: dist/*.deb
+
+      - if: matrix.os-name == 'linux'
+        name: Upload Linux tar.gz
+        uses: actions/upload-artifact@v4
+        with:
+          name: pano-scrobbler-linux-tar
+          path: dist/*.tar.gz
+
+      - if: matrix.os-name == 'windows'
+        name: Upload Windows exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: pano-scrobbler-windows-exe
+          path: dist/*.exe

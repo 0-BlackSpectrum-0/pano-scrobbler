@@ -210,7 +210,7 @@ buildkonfig {
             STRING,
             "SPOTIFY_REFRESH_TOKEN",
             xor(spotifyRefreshToken, APP_ID),
-            const = true
+            const = false
         )
 
     }

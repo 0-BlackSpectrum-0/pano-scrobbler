@@ -6,12 +6,16 @@ import android.content.pm.PackageManager
 import android.service.media.MediaBrowserService
 import com.arn.scrobble.BuildKonfig
 import com.arn.scrobble.utils.AndroidStuff
+import com.arn.scrobble.utils.Stuff
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 
 
 actual suspend fun AppListVM.load(
     packagesOverride: Set<String>?,
+    useCache: Boolean,
+    forceRefresh: Boolean,
     onSetAppList: (AppList) -> Unit,
     onSetHostnames: (List<String>) -> Unit,
     onSetBlockedHostnames: (Set<String>) -> Unit,
@@ -62,6 +66,25 @@ actual suspend fun AppListVM.load(
         onSetHasLoaded()
 
         return
+    }
+
+    val cacheFile = File(AndroidStuff.applicationContext.cacheDir, "app_list_cache.json")
+    if (useCache && !forceRefresh && cacheFile.exists()) {
+        try {
+            val cached = Stuff.myJson.decodeFromString<AppList>(cacheFile.readText())
+            val (selectedMusic, unselectedMusic) = cached.musicPlayers.partition { it.appId in selectedPackages.value }
+            val (selectedOther, unselectedOther) = cached.otherApps.partition { it.appId in selectedPackages.value }
+            onSetAppList(
+                AppList(
+                    musicPlayers = selectedMusic + unselectedMusic,
+                    otherApps = selectedOther + unselectedOther
+                )
+            )
+            onSetHasLoaded()
+            return
+        } catch (e: Exception) {
+            // fallback
+        }
     }
 
 
@@ -119,15 +142,20 @@ actual suspend fun AppListVM.load(
         // remove music players from other apps
         musicPlayers.forEach { (key, _) -> otherApps.remove(key) }
 
-        onSetAppList(
-            AppList(
-                musicPlayers = musicPlayers.values.sortAndTransform(),
-                otherApps = otherApps.values.sortAndTransform()
-            )
+        val resultAppList = AppList(
+            musicPlayers = musicPlayers.values.sortAndTransform(),
+            otherApps = otherApps.values.sortAndTransform()
         )
 
-        // add other apps to list
+        if (useCache || forceRefresh) {
+            try {
+                cacheFile.writeText(Stuff.myJson.encodeToString(resultAppList))
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
 
+        onSetAppList(resultAppList)
         onSetHasLoaded()
     }
 }

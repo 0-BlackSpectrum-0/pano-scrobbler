@@ -14,10 +14,12 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LocalAbsoluteTonalElevation
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,12 +41,14 @@ import com.arn.scrobble.icons.Info
 import com.arn.scrobble.icons.OpenInBrowser
 import com.arn.scrobble.icons.PlayCircle
 import com.arn.scrobble.icons.Public
+import com.arn.scrobble.icons.Refresh
 import com.arn.scrobble.icons.Settings
 import com.arn.scrobble.navigation.FabClickedResult
 import com.arn.scrobble.navigation.PanoRoute
 import com.arn.scrobble.ui.AppIcon
 import com.arn.scrobble.ui.ButtonWithIcon
 import com.arn.scrobble.ui.ExpandableHeaderItem
+import com.arn.scrobble.ui.IconButtonWithTooltip
 import com.arn.scrobble.ui.LabeledCheckbox
 import com.arn.scrobble.ui.PanoLazyColumn
 import com.arn.scrobble.ui.SearchEffect
@@ -86,7 +90,13 @@ fun AppListScreen(
     onNavigate: (PanoRoute) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: AppListVM = viewModel { AppListVM(preSelectedPackages, packagesOverride) },
+    viewModel: AppListVM = viewModel {
+        AppListVM(
+            preSelectedPackages,
+            packagesOverride,
+            useCache = (saveType == AppListSaveType.Scrobbling || saveType == AppListSaveType.TemporaryScrobble)
+        )
+    },
 ) {
     val appList by viewModel.appList.collectAsStateWithLifecycle()
     val appListFiltered by viewModel.appListFiltered.collectAsStateWithLifecycle()
@@ -147,6 +157,16 @@ fun AppListScreen(
                                     pref.extractFirstArtistPackages,
                                 blockedHostnames = blockedHostNames ?: pref.blockedHostnames,
                                 appListWasRun = true,
+                            )
+                        }
+                    }
+                }
+
+                AppListSaveType.TemporaryScrobble -> {
+                    Stuff.appScope.launch {
+                        PlatformStuff.mainPrefs.updateData { pref ->
+                            pref.copy(
+                                temporaryScrobblePackages = checkedAppIdsSet
                             )
                         }
                     }
@@ -316,12 +336,42 @@ fun AppListScreen(
 
                     else -> {
                         item("header_action") {
-                            SimpleHeaderItem(
-                                text = stringResource(Res.string.music_players),
-                                icon = Icons.PlayCircle,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                            )
+                            if (saveType == AppListSaveType.Scrobbling || saveType == AppListSaveType.TemporaryScrobble) {
+                                ListItem(
+                                    colors = ListItemDefaults.colors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(
+                                            LocalAbsoluteTonalElevation.current + 2.dp
+                                        ),
+                                    ),
+                                    leadingContent = {
+                                        Icon(
+                                            imageVector = Icons.PlayCircle,
+                                            contentDescription = null,
+                                        )
+                                    },
+                                    headlineContent = {
+                                        Text(
+                                            text = stringResource(Res.string.music_players),
+                                            style = MaterialTheme.typography.titleMedium,
+                                        )
+                                    },
+                                    trailingContent = {
+                                        IconButtonWithTooltip(
+                                            onClick = { viewModel.refreshAppList() },
+                                            icon = Icons.Refresh,
+                                            contentDescription = "Refresh app list"
+                                        )
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            } else {
+                                SimpleHeaderItem(
+                                    text = stringResource(Res.string.music_players),
+                                    icon = Icons.PlayCircle,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                )
+                            }
                         }
                     }
                 }
@@ -557,6 +607,9 @@ private fun AppListItem(
 sealed interface AppListSaveType {
     @Serializable
     object Scrobbling : AppListSaveType
+
+    @Serializable
+    object TemporaryScrobble : AppListSaveType
 
     @Serializable
     object ExtractFirstArtist : AppListSaveType
