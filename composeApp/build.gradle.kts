@@ -57,7 +57,7 @@ kotlin {
 //                minorApiLevel = libs.versions.sdkMinor.get().toInt()
             }
         }
-        namespace = APP_ID
+        namespace = "com.arn.scrobble"
         minSdk = libs.versions.minSdk.get().toInt()
 
         androidResources {
@@ -175,7 +175,7 @@ buildkonfig {
             .encode(out)
     }
 
-    packageName = APP_ID
+    packageName = "com.arn.scrobble"
 
     // default config is required
     defaultConfigs {

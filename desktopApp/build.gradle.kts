@@ -133,7 +133,7 @@ if (IS_LINUX) {
         inputs.file(layout.projectDirectory.file("package-for-linux.sh"))
         outputs.files(
             layout.projectDirectory.file("../dist/$APP_NAME_NO_SPACES-$RESOURCES_DIR_NAME.tar.gz"),
-            layout.projectDirectory.file("../dist/$APP_NAME_NO_SPACES-$RESOURCES_DIR_NAME.deb"),
+            layout.projectDirectory.file("../dist/$APP_NAME_NO_SPACES-$RESOURCES_DIR_NAME.flatpak"),
             layout.projectDirectory.file("../dist/$APP_NAME_NO_SPACES-$RESOURCES_DIR_NAME.AppImage")
         )
 

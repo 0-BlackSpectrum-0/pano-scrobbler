@@ -83,49 +83,49 @@ fi
 distFile="$distDir/$appNameWithoutSpaces-$resourcesDirName.AppImage"
 ARCH=$arch VERSION="$verName" "$appImageToolFile" "$appDir" "$distFile"
 
-# Build deb package, if dpkg-deb is available
-if ! command -v dpkg-deb &> /dev/null; then
-    echo "dpkg-deb could not be found, skipping deb package creation."
+# Build Flatpak bundle, if flatpak is available
+if ! command -v flatpak &> /dev/null; then
+    echo "flatpak command not found, skipping Flatpak creation."
     exit 0
 fi
 
-debFile="${distDir}/${appNameWithoutSpaces}-${resourcesDirName}.deb"
-debPkgDir="/tmp/pano-scrobbler-deb"
+flatpakAppId="org.blackspectrum.scrobbler"
+flatpakAppDir="/tmp/pano-scrobbler-flatpak"
+flatpakRepoDir="/tmp/pano-scrobbler-flatpak-repo"
+flatpakBundleFile="${distDir}/${appNameWithoutSpaces}-${resourcesDirName}.flatpak"
 
-rm -rf "$debPkgDir"
+rm -rf "$flatpakAppDir" "$flatpakRepoDir"
 
-install -Dm644 -t "${debPkgDir}/opt/$appNameWithoutSpaces/lib/" "${nativeImageDir}"/lib/*.so
-install -Dm644 -t "${debPkgDir}/opt/$appNameWithoutSpaces/" "${nativeImageDir}"/*.so
-install -Dm755 -t "${debPkgDir}/opt/$appNameWithoutSpaces/" "${nativeImageDir}/${appNameWithoutSpaces}"
-install -d "${debPkgDir}/usr/bin/"
-ln -srf "${debPkgDir}/opt/$appNameWithoutSpaces/$appNameWithoutSpaces" "${debPkgDir}/usr/bin/${appNameWithoutSpaces}"
+# Initialize flatpak build directory using GNOME or Freedesktop runtime
+flatpak build-init "$flatpakAppDir" "$flatpakAppId" org.gnome.Sdk org.gnome.Platform 47 2>/dev/null || \
+flatpak build-init "$flatpakAppDir" "$flatpakAppId" org.freedesktop.Sdk org.freedesktop.Platform 24.08
 
-install -Dm644 "${nativeImageDir}/${appNameWithoutSpaces}.desktop" "${debPkgDir}/usr/share/applications/${appNameWithoutSpaces}.desktop"
-install -Dm644 -t "${debPkgDir}/usr/share/icons/hicolor/scalable/apps/" "${nativeImageDir}/icons/hicolor/scalable/apps/"*.svg
-install -Dm644 -t "${debPkgDir}/usr/share/icons/hicolor/symbolic/apps/" "${nativeImageDir}/icons/hicolor/symbolic/apps/"*.svg
-install -Dm644 -t "${debPkgDir}/usr/share/licenses/${appNameWithoutSpaces}/" "${nativeImageDir}/LICENSE"
+mkdir -p "$flatpakAppDir/files/bin" "$flatpakAppDir/files/lib" "$flatpakAppDir/files/share/applications" "$flatpakAppDir/files/share/icons"
 
-installedSize=$(du -sk "${debPkgDir}" | awk '{print $1}')
-
-if [ "$arch" = "aarch64" ]; then
-    debArch="arm64"
-else
-    debArch="amd64"
+install -Dm755 "${nativeImageDir}/${appNameWithoutSpaces}" "$flatpakAppDir/files/bin/${appNameWithoutSpaces}"
+install -Dm644 -t "$flatpakAppDir/files/lib/" "${nativeImageDir}"/*.so 2>/dev/null || true
+if [ -d "${nativeImageDir}/lib" ]; then
+    cp -r "${nativeImageDir}/lib/." "$flatpakAppDir/files/lib/"
 fi
 
-install -d $debPkgDir/DEBIAN
+# Desktop file & icons
+sed "s/^Exec=.*/Exec=${appNameWithoutSpaces} %U/" "${nativeImageDir}/${appNameWithoutSpaces}.desktop" > "$flatpakAppDir/files/share/applications/${flatpakAppId}.desktop"
+if [ -d "$appDir/usr/share/icons" ]; then
+    cp -r "$appDir/usr/share/icons/." "$flatpakAppDir/files/share/icons/"
+elif [ -d "${nativeImageDir}/icons" ]; then
+    cp -r "${nativeImageDir}/icons/." "$flatpakAppDir/files/share/icons/"
+fi
 
-cat > "${debPkgDir}/DEBIAN/control" <<EOF
-Package: ${appNameWithoutSpaces}
-Version: ${verName}
-Architecture: ${debArch}
-Maintainer: kawaiiDango <kawaiiDango@protonmail.com>
-Installed-Size: ${installedSize}
-Depends: dbus, libwebkitgtk-6.0-4
-Section: sound
-Priority: optional
-Homepage: https://github.com/kawaiiDango/pano-scrobbler
-Description: Feature packed cross-platform music tracker
-EOF
+flatpak build-finish "$flatpakAppDir" \
+    --command="${appNameWithoutSpaces}" \
+    --share=ipc \
+    --socket=fallback-x11 \
+    --socket=wayland \
+    --share=network \
+    --socket=pulseaudio \
+    --talk-name=org.freedesktop.Notifications \
+    --talk-name=org.mpris.MediaPlayer2.*
 
-dpkg-deb -Zzstd -z22 --build --root-owner-group "${debPkgDir}" "${debFile}"
+flatpak build-export "$flatpakRepoDir" "$flatpakAppDir"
+flatpak build-bundle "$flatpakRepoDir" "$flatpakBundleFile" "$flatpakAppId"
+echo "Flatpak bundle successfully created: $flatpakBundleFile"

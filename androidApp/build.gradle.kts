@@ -33,7 +33,7 @@ android {
 
     defaultConfig {
         applicationId = APP_ID
-        namespace = APP_ID + ".androidApp"
+        namespace = "com.arn.scrobble.androidApp"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
         versionCode = VER_CODE
