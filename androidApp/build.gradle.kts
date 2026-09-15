@@ -39,6 +39,9 @@ android {
         versionCode = VER_CODE
         versionName = VER_NAME
         base.archivesName = APP_NAME_NO_SPACES
+        ndk {
+            abiFilters.add("arm64-v8a")
+        }
 //        ndkVersion = "29.0.14206865"
     }
 
@@ -114,57 +117,66 @@ android {
     signingConfigs {
         val localProperties = gradleLocalProperties(rootDir, project.providers)
 
-        val releaseKeystorePath = localProperties.getProperty("release.keystorePath")
-        val releaseStorePassword = localProperties.getProperty("release.storePassword")
-        val releaseAlias = localProperties.getProperty("release.alias")
-        val releasePassword = localProperties.getProperty("release.password")
+        val rawPath = localProperties.getProperty("releaseGithub.keystorePath")
+            ?: localProperties.getProperty("release.keystorePath")
+            ?: System.getenv("KEYSTORE_PATH")
+            ?: System.getenv("RELEASE_KEYSTORE_PATH")
 
-        if (
-            releaseKeystorePath != null &&
-            releaseStorePassword != null &&
-            releaseAlias != null &&
-            releasePassword != null
-        ) {
-            register("release") {
-                storeFile = file(releaseKeystorePath)
-                storePassword = releaseStorePassword
-                keyAlias = releaseAlias
-                keyPassword = releasePassword
-            }
-        }
+        val candidateKeystoreFiles = listOfNotNull(
+            rawPath?.let { rootProject.file(it) },
+            rawPath?.let { file(it) },
+            file("android-keystore.jks"),
+            rootProject.file("androidApp/android-keystore.jks"),
+            rootProject.file("android-keystore.jks"),
+            file("keystore.jks"),
+            rootProject.file("keystore.jks")
+        )
+        val resolvedKeystoreFile = candidateKeystoreFiles.firstOrNull { it.exists() && it.isFile && it.length() > 0 }
 
-        val releaseGithubKeystorePath = localProperties.getProperty("releaseGithub.keystorePath")
-        val releaseGithubStorePassword = localProperties.getProperty("releaseGithub.storePassword")
-        val releaseGithubAlias = localProperties.getProperty("releaseGithub.alias")
-        val releaseGithubPassword = localProperties.getProperty("releaseGithub.password")
+        val storePassword = localProperties.getProperty("releaseGithub.storePassword")
+            ?: localProperties.getProperty("release.storePassword")
+            ?: System.getenv("KEYSTORE_STORE_PASSWORD")
+            ?: System.getenv("KEYSTORE_PASSWORD")
+            ?: System.getenv("ANDROID_KEYSTORE_PASSWORD")
 
-        if (
-            releaseGithubKeystorePath != null &&
-            releaseGithubStorePassword != null &&
-            releaseGithubAlias != null &&
-            releaseGithubPassword != null
-        ) {
+        val keyAlias = localProperties.getProperty("releaseGithub.alias")
+            ?: localProperties.getProperty("release.alias")
+            ?: System.getenv("KEYSTORE_ALIAS")
+            ?: System.getenv("KEY_ALIAS")
+            ?: "pano-key"
+
+        val keyPassword = localProperties.getProperty("releaseGithub.password")
+            ?: localProperties.getProperty("release.password")
+            ?: System.getenv("KEYSTORE_KEY_PASSWORD")
+            ?: System.getenv("KEY_PASSWORD")
+            ?: storePassword
+
+        if (resolvedKeystoreFile != null && !storePassword.isNullOrBlank() && !keyPassword.isNullOrBlank()) {
             register("releaseGithub") {
-                storeFile = file(releaseGithubKeystorePath)
-                storePassword = releaseGithubStorePassword
-                keyAlias = releaseGithubAlias
-                keyPassword = releaseGithubPassword
+                storeFile = resolvedKeystoreFile
+                this.storePassword = storePassword
+                this.keyAlias = keyAlias
+                this.keyPassword = keyPassword
+                enableV1Signing = true
+                enableV2Signing = true
             }
         }
     }
 
     buildTypes {
         getByName("debug") {
-//            signingConfig = signingConfigs.findByName("releaseGithub")
-            signingConfig = signingConfigs.findByName("release")
+            signingConfig = signingConfigs.findByName("releaseGithub")
+                ?: signingConfigs.getByName("debug")
         }
 
         getByName("release") {
-            signingConfig = signingConfigs.findByName("release")
+            signingConfig = signingConfigs.findByName("releaseGithub")
+                ?: signingConfigs.getByName("debug")
         }
 
         getByName("releaseGithub") {
             signingConfig = signingConfigs.findByName("releaseGithub")
+                ?: signingConfigs.getByName("debug")
         }
     }
 }
@@ -219,7 +231,7 @@ tasks.register<Copy>("copyGithubReleaseApk") {
     from("build/outputs/apk/releaseGithub")
     into("../dist")
     include("*.apk")
-    rename(".*\\.apk", "$APP_NAME_NO_SPACES-android-universal.apk")
+    rename(".*\\.apk", "$APP_NAME_NO_SPACES-android-arm64-v8a.apk")
 }
 
 tasks.configureEach {

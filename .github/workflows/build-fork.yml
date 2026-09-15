@@ -176,7 +176,9 @@ jobs:
       - name: Set up Android secrets
         shell: bash
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_JKS }}" | base64 -d - > androidApp/android-keystore.jks
+          if [ -n "${{ secrets.ANDROID_KEYSTORE_JKS }}" ]; then
+            echo "${{ secrets.ANDROID_KEYSTORE_JKS }}" | base64 -d - > androidApp/android-keystore.jks
+          fi
 
       - name: Update Android package name to org.blackspectrum.scrobbler
         shell: bash
@@ -185,19 +187,24 @@ jobs:
 
       - name: Build APK
         shell: bash
+        env:
+          KEYSTORE_PATH: androidApp/android-keystore.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           export JAVA_HOME=$JAVA_HOME_25_X64
           $ANDROID_HOME/cmdline-tools/**/bin/sdkmanager --update
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --list_installed
           ./gradlew androidApp:assembleReleaseGithub --no-daemon --no-configuration-cache
           mkdir -p dist
-          find androidApp/build/outputs/apk/ -type f -name "*.apk" -exec cp -v {} dist/pano-scrobbler-android-universal.apk \;
+          find androidApp/build/outputs/apk/ -type f -name "*.apk" -exec cp -v {} dist/pano-scrobbler-android-arm64-v8a.apk \;
           ls -la dist/
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: pano-scrobbler-android-universal
+          name: pano-scrobbler-android-arm64-v8a
           path: dist/*.apk
 
   release:
