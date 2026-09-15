@@ -218,11 +218,10 @@ aboutLibraries {
 tasks.register<Copy>("copyGithubReleaseApk") {
     from("build/outputs/apk/releaseGithub")
     into("../dist")
-    include("*-releaseGithub.apk")
-    rename(
-        "(.*)-releaseGithub.apk",
+    include("*.apk")
+    rename {
         "$APP_NAME_NO_SPACES-android-universal.apk"
-    )
+    }
 }
 
 tasks.configureEach {
