@@ -54,6 +54,13 @@ jobs:
 
           gh run download "$RUN_ID" -R "kawaiiDango/pano-native-components" -n "libs-windows-x64" -D desktopApp/resources/windows-x64
 
+      - name: Download WebView2Loader.dll
+        shell: bash
+        run: |
+          curl -fL -o webview2.zip "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2"
+          unzip -q -o -j webview2.zip "runtimes/win-x64/native/WebView2Loader.dll" -d desktopApp/resources/windows-x64
+          rm -f webview2.zip
+
       - name: Install Inno Setup
         shell: bash
         run: |

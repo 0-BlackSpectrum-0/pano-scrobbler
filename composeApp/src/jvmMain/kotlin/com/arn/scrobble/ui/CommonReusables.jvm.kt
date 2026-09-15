@@ -29,6 +29,10 @@ import org.jetbrains.skia.Data
 import java.io.File
 import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
+import co.touchlab.kermit.Logger
+import com.arn.scrobble.api.Requesters
+import io.ktor.client.call.body
+import io.ktor.client.request.get
 
 private data class DecodedGif(
     val frames: List<GifFrame>
@@ -64,22 +68,42 @@ private fun GifAvatarImage(
         if (decodedGif != null) return@LaunchedEffect
         withContext(Dispatchers.IO) {
             runCatching {
-                val bytes = when {
-                    avatarUrl.startsWith("http://", ignoreCase = true) ||
-                            avatarUrl.startsWith("https://", ignoreCase = true) -> {
-                        val connection = URI.create(avatarUrl).toURL().openConnection()
-                        connection.connectTimeout = 10000
-                        connection.readTimeout = 15000
-                        connection.getInputStream().use { it.readBytes() }
-                    }
-                    avatarUrl.startsWith("file://", ignoreCase = true) -> {
-                        File(URI.create(avatarUrl).path).readBytes()
-                    }
-                    else -> {
-                        val f = File(avatarUrl)
-                        if (f.exists()) f.readBytes() else null
+                val candidateUrls = buildList {
+                    if (avatarUrl.contains(".gif", ignoreCase = true)) {
+                        add(avatarUrl)
+                    } else if (avatarUrl.startsWith("https://lastfm.freetls.fastly.net", ignoreCase = true)) {
+                        add(avatarUrl.substringBeforeLast('.') + ".gif")
+                        add(avatarUrl)
+                    } else {
+                        add(avatarUrl)
                     }
                 }
+
+                var bytes: ByteArray? = null
+                for (targetUrl in candidateUrls) {
+                    try {
+                        val downloaded = when {
+                            targetUrl.startsWith("http://", ignoreCase = true) ||
+                                    targetUrl.startsWith("https://", ignoreCase = true) -> {
+                                Requesters.baseKtorClient.get(targetUrl).body<ByteArray>()
+                            }
+                            targetUrl.startsWith("file://", ignoreCase = true) -> {
+                                File(URI.create(targetUrl).path).readBytes()
+                            }
+                            else -> {
+                                val f = File(targetUrl)
+                                if (f.exists()) f.readBytes() else null
+                            }
+                        }
+                        if (downloaded != null && isGifBytes(downloaded)) {
+                            bytes = downloaded
+                            break
+                        }
+                    } catch (e: Exception) {
+                        Logger.w(e) { "Failed to fetch avatar from $targetUrl" }
+                    }
+                }
+
                 if (bytes != null && isGifBytes(bytes)) {
                     val codec = Codec.makeFromData(Data.makeFromBytes(bytes))
                     val frameCount = codec.frameCount
@@ -103,7 +127,8 @@ private fun GifAvatarImage(
                 } else {
                     loadFailed = true
                 }
-            }.onFailure {
+            }.onFailure { e ->
+                Logger.w(e) { "Failed to decode GIF avatar for $avatarUrl" }
                 loadFailed = true
             }
         }
@@ -159,12 +184,12 @@ actual fun AvatarImage(
     contentDescription: String?,
     modifier: Modifier,
 ) {
-    val isGif = remember(avatarUrl) {
-        avatarUrl.substringBefore('?').endsWith(".gif", ignoreCase = true) ||
-                avatarUrl.contains(".gif", ignoreCase = true)
+    val isGifCandidate = remember(avatarUrl) {
+        avatarUrl.contains(".gif", ignoreCase = true) ||
+                avatarUrl.startsWith("https://lastfm.freetls.fastly.net", ignoreCase = true)
     }
 
-    if (isGif) {
+    if (isGifCandidate) {
         GifAvatarImage(
             avatarUrl = avatarUrl,
             contentDescription = contentDescription,

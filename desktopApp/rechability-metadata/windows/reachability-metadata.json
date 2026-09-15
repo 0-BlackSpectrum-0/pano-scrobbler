@@ -1647,6 +1647,21 @@
       ]
     },
     {
+      "type": "org.jetbrains.skia.Codec",
+      "jniAccessible": true,
+      "allDeclaredMethods": true
+    },
+    {
+      "type": "org.jetbrains.skia.Data",
+      "jniAccessible": true,
+      "allDeclaredMethods": true
+    },
+    {
+      "type": "org.jetbrains.skia.Bitmap",
+      "jniAccessible": true,
+      "allDeclaredMethods": true
+    },
+    {
       "type": "org.jetbrains.skia.AnimationFrameInfo",
       "jniAccessible": true,
       "methods": [
