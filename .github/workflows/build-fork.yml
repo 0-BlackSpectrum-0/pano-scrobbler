@@ -1,8 +1,5 @@
 name: Build Binaries (Fork)
 on:
-  push:
-    branches:
-      - fork-version
   workflow_dispatch:
     inputs:
       upload-release:
