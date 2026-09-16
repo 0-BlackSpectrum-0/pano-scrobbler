@@ -150,6 +150,7 @@ import pano_scrobbler.composeapp.generated.resources.simple_edits
 import pano_scrobbler.composeapp.generated.resources.spotify
 import pano_scrobbler.composeapp.generated.resources.system
 import pano_scrobbler.composeapp.generated.resources.when_not_using
+import pano_scrobbler.composeapp.generated.resources.wiki_lang_selector
 import java.util.Calendar
 import java.util.Locale
 import kotlin.time.Duration.Companion.hours
@@ -195,8 +196,8 @@ fun PrefsScreen(
     mainPrefs.data.collectAsStateWithInitialValue { it.preventDuplicateAmbientScrobbles }
     val submitNowPlaying by
     mainPrefs.data.collectAsStateWithInitialValue { it.submitNowPlaying }
-//    val trayIconTheme by
-//    mainPrefs.data.collectAsStateWithInitialValue { it.trayIconTheme }
+    val wikiLangs by
+    mainPrefs.data.collectAsStateWithInitialValue { it.wikiLangs }
     val notiPersistent by
     mainPrefs.data.collectAsStateWithInitialValue { it.notiPersistent }
     val checkForUpdates by
@@ -940,6 +941,16 @@ fun PrefsScreen(
                     localeChanged = true
                     this
                 }
+            )
+        }
+
+        filteredItem("languages_lastfm_wiki", Res.string.wiki_lang_selector) { title ->
+            MultiSelectDropdownPref(
+                text = title,
+                selectedValues = wikiLangs,
+                values = listOf("en") + Stuff.lastfmSupportedLanguageOverrides,
+                toLabel = { LocaleUtils.langCodesMap[it] ?: it },
+                copyToSave = { copy(wikiLangs = it.ifEmpty { setOf("en") }) },
             )
         }
 

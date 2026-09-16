@@ -25,7 +25,7 @@ import com.arn.scrobble.utils.LocaleUtils
 import com.arn.scrobble.utils.PanoNotifications
 import com.arn.scrobble.utils.PlatformStuff
 import com.arn.scrobble.utils.Stuff
-import com.arn.scrobble.utils.getSystemCountryCode
+import com.arn.scrobble.utils.getSystemLocale
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -131,6 +131,7 @@ data class MainPrefs(
     val lastfmApiAlways: Boolean = false,
     private val logToFileOnAndroidSince: Long = -1,
     val lovesFetchedForCache: Boolean = false,
+    val wikiLangs: Set<String> = setOf("en"),
     val extractFirstArtistPackages: Set<String> = emptySet(),
     val discordRpc: DiscordRpcPrefs = DiscordRpcPrefs(),
     val proxy: ProxyPrefs = ProxyPrefs(),
@@ -240,10 +241,10 @@ data class MainPrefs(
         get() = demoMode && BuildKonfig.DEBUG
 
     val spotifyCountryP
-        get() = spotifyCountry ?: LocaleUtils.getSystemCountryCode()
+        get() = spotifyCountry ?: LocaleUtils.getSystemLocale().country.ifEmpty { "US" }
 
     val itunesCountryP
-        get() = itunesCountry ?: LocaleUtils.getSystemCountryCode()
+        get() = itunesCountry ?: LocaleUtils.getSystemLocale().country.ifEmpty { "US" }
 
     val scrobbleSpotifyRemoteP
         get() = PlatformStuff.supportsSpotifyRemote && scrobbleSpotifyRemote

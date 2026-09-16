@@ -132,6 +132,8 @@ fun MusicEntryInfoDialog(
             Stuff.TYPE_ALBUM_ARTISTS,
         )
     }
+    val wikiLangs by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { it.wikiLangs }
+    var selectedLang by rememberSaveable { mutableStateOf(wikiLangs.firstOrNull() ?: "en") }
     var isLoved by rememberSaveable { mutableStateOf<Boolean?>(null) }
     var expandedHeaderType by rememberSaveable { mutableIntStateOf(-1) }
     var expandedWikiType by rememberSaveable { mutableIntStateOf(-1) }
@@ -323,22 +325,30 @@ fun MusicEntryInfoDialog(
             if (entry.playcount != null || entry.listeners != null || !infoLoaded) {
                 InfoCountsForMusicEntry(
                     entry = entry,
-                    user = user,
+                    user = user.takeIf { accountType == AccountType.LASTFM },
                     onNavigate = onNavigate,
                     modifier = Modifier.padding(horizontal = 24.dp)
                 )
             }
 
-            entry.wiki?.content?.let {
+            if (useLastfm && infoLoaded) {
                 InfoWikiText(
-                    text = it,
+                    text = entry.wiki?.content.orEmpty(),
                     maxLinesWhenCollapsed = 3,
                     expanded = expandedWikiType == type,
                     onExpandToggle = {
                         expandedWikiType = if (expandedWikiType == type) -1 else type
                     },
+                    wikiLangs = wikiLangs,
+                    selectedLang = selectedLang,
+                    onSelectedLang = {
+                        selectedLang = it
+                        viewModel.setLang(it)
+                    },
                     scrollState = scrollState,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
                 )
             }
 
@@ -377,7 +387,7 @@ private fun ColumnScope.InfoBigPicture(
 @Composable
 private fun InfoCountsForMusicEntry(
     entry: MusicEntry,
-    user: UserCached,
+    user: UserCached?,
     onNavigate: (PanoRoute) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -391,9 +401,9 @@ private fun InfoCountsForMusicEntry(
             stringResource(Res.string.listeners) to entry.listeners,
             stringResource(Res.string.scrobbles) to entry.playcount,
         ),
-        avatarUrl = user.largeImage.takeIf { it.isNotEmpty() },
-        avatarName = user.name,
-        onClickFirstItem = if ((entry.userplaycount ?: 0) > 0 && entry is Track) {
+        avatarUrl = user?.largeImage.takeIf { it?.isNotEmpty() == true },
+        avatarName = user?.name,
+        onClickFirstItem = if (user != null && (entry.userplaycount ?: 0) > 0 && entry is Track) {
             {
                 onNavigate(
                     PanoRoute.TrackHistory(
@@ -402,7 +412,7 @@ private fun InfoCountsForMusicEntry(
                     )
                 )
             }
-        } else if ((entry.userplaycount ?: 0) > 0 && !PlatformStuff.isTv) {
+        } else if (user != null && (entry.userplaycount ?: 0) > 0 && !PlatformStuff.isTv) {
             {
                 entry.url
                     ?.replace("/music/", "/user/${user.name}/library/music/")
