@@ -6,18 +6,85 @@ on:
         type: boolean
         description: 'Upload to GitHub Releases?'
         required: false
-        default: false
+        default: true
+      custom-version:
+        type: string
+        description: 'Optional custom version code (e.g. 445; leave blank to auto-bump)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
 
 jobs:
+  prepare:
+    name: Prepare Version
+    runs-on: ubuntu-24.04
+    outputs:
+      verCode: ${{ steps.version_calc.outputs.verCode }}
+      verName: ${{ steps.version_calc.outputs.verName }}
+      commit_sha: ${{ steps.version_calc.outputs.commit_sha }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: fork-version
+          fetch-depth: 0
+
+      - name: Calculate and bump version
+        id: version_calc
+        shell: bash
+        run: |
+          currentVer=$(cat version.txt | tr -d '[:space:]')
+
+          if [ "${{ inputs.upload-release }}" = "true" ]; then
+            if [ -n "${{ inputs.custom-version }}" ]; then
+              newVer="${{ inputs.custom-version }}"
+            else
+              git fetch --tags --prune
+              latestTag=$(git tag -l | grep -E '^[0-9]+$' | sort -n | tail -n 1)
+              if [ -z "$latestTag" ]; then
+                latestTag=0
+              fi
+
+              if [ "$currentVer" -le "$latestTag" ]; then
+                newVer=$((latestTag + 1))
+              else
+                newVer=$((currentVer + 1))
+              fi
+            fi
+
+            echo "$newVer" > version.txt
+            newVerName="$((newVer / 100)).$((newVer % 100))"
+
+            if ! git diff --quiet version.txt; then
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git add version.txt
+              git commit -m "chore(release): bump version to $newVerName ($newVer)"
+              git push origin fork-version
+            fi
+
+            commitSha=$(git rev-parse HEAD)
+            echo "verCode=$newVer" >> $GITHUB_OUTPUT
+            echo "verName=$newVerName" >> $GITHUB_OUTPUT
+            echo "commit_sha=$commitSha" >> $GITHUB_OUTPUT
+          else
+            verName="$((currentVer / 100)).$((currentVer % 100))"
+            echo "verCode=$currentVer" >> $GITHUB_OUTPUT
+            echo "verName=$verName" >> $GITHUB_OUTPUT
+            echo "commit_sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+          fi
+
   build-windows:
     name: Build Windows
+    needs: [ prepare ]
     runs-on: windows-2025-vs2026
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.commit_sha }}
 
       - name: Set up common secrets
         shell: bash
@@ -76,10 +143,13 @@ jobs:
 
   build-linux:
     name: Build Linux
+    needs: [ prepare ]
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.commit_sha }}
 
       - name: Fix permissions
         shell: bash
@@ -158,10 +228,13 @@ jobs:
 
   build-android:
     name: Build Android
+    needs: [ prepare ]
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.commit_sha }}
 
       - name: Fix permissions
         shell: bash
@@ -209,7 +282,7 @@ jobs:
 
   release:
     name: Release
-    needs: [ build-windows, build-linux, build-android ]
+    needs: [ prepare, build-windows, build-linux, build-android ]
     if: inputs.upload-release
     runs-on: ubuntu-24.04
     permissions:
@@ -217,6 +290,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.commit_sha }}
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -224,22 +299,31 @@ jobs:
           path: dist-release
           merge-multiple: true
 
-      - name: Read version
-        id: release_metadata
+      - name: Prepare changelog
+        id: release_changelog
         shell: bash
         run: |
-          verCode=$(cat version.txt | tr -d '[:space:]')
-          verName="$((verCode / 100)).$((verCode % 100))"
-          echo "verCode=$verCode" >> $GITHUB_OUTPUT
-          echo "verName=$verName" >> $GITHUB_OUTPUT
+          changelog=""
+          if [ -s "changelog-minor.md" ]; then
+            changelog=$(cat changelog-minor.md)
+          elif [ -s "changelog.md" ]; then
+            changelog=$(cat changelog.md)
+          fi
+          {
+            echo "changelog<<EOF"
+            echo "$changelog"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: ${{ steps.release_metadata.outputs.verCode }}
-          target_commitish: ${{ github.sha }}
-          name: ${{ steps.release_metadata.outputs.verName }}
+          tag_name: ${{ needs.prepare.outputs.verCode }}
+          target_commitish: ${{ needs.prepare.outputs.commit_sha }}
+          name: ${{ needs.prepare.outputs.verName }}
+          body: ${{ steps.release_changelog.outputs.changelog }}
+          generate_release_notes: true
           draft: false
           prerelease: false
           files: dist-release/*
