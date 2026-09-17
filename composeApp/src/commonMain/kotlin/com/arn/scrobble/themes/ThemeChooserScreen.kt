@@ -20,7 +20,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalToggleButton
+import androidx.compose.material3.FilledTonalToggleButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -29,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -49,14 +54,18 @@ import androidx.compose.ui.unit.dp
 import com.arn.scrobble.billing.LocalLicenseValidState
 import com.arn.scrobble.icons.Casino
 import com.arn.scrobble.icons.CheckCircleFilled
+import com.arn.scrobble.icons.Colorize
 import com.arn.scrobble.icons.Icons
 import com.arn.scrobble.icons.Lock
 import com.arn.scrobble.icons.Palette
 import com.arn.scrobble.pref.MainPrefs
 import com.arn.scrobble.pref.SliderPref
+import com.arn.scrobble.ui.ApplyWindowBlur
 import com.arn.scrobble.ui.ButtonWithIcon
 import com.arn.scrobble.ui.LabeledCheckbox
+import com.arn.scrobble.ui.PanoOutlinedTextField
 import com.arn.scrobble.utils.PlatformStuff
+import com.arn.scrobble.utils.Stuff
 import com.arn.scrobble.utils.Stuff.collectAsStateWithInitialValue
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
@@ -64,17 +73,26 @@ import pano_scrobbler.composeapp.generated.resources.Res
 import pano_scrobbler.composeapp.generated.resources.alpha_notice
 import pano_scrobbler.composeapp.generated.resources.appwidget_alpha
 import pano_scrobbler.composeapp.generated.resources.auto
+import pano_scrobbler.composeapp.generated.resources.base_theme
+import pano_scrobbler.composeapp.generated.resources.black
 import pano_scrobbler.composeapp.generated.resources.blur
 import pano_scrobbler.composeapp.generated.resources.blur_main_window
 import pano_scrobbler.composeapp.generated.resources.blur_notice
 import pano_scrobbler.composeapp.generated.resources.blur_sub_window
+import pano_scrobbler.composeapp.generated.resources.cancel
+import pano_scrobbler.composeapp.generated.resources.color_style
 import pano_scrobbler.composeapp.generated.resources.contrast
+import pano_scrobbler.composeapp.generated.resources.custom
+import pano_scrobbler.composeapp.generated.resources.custom_hex_hint
+import pano_scrobbler.composeapp.generated.resources.custom_hex_title
 import pano_scrobbler.composeapp.generated.resources.dark
 import pano_scrobbler.composeapp.generated.resources.experimental
 import pano_scrobbler.composeapp.generated.resources.high
+import pano_scrobbler.composeapp.generated.resources.invalid_hex
 import pano_scrobbler.composeapp.generated.resources.light
 import pano_scrobbler.composeapp.generated.resources.low
 import pano_scrobbler.composeapp.generated.resources.medium
+import pano_scrobbler.composeapp.generated.resources.ok
 import pano_scrobbler.composeapp.generated.resources.palette_cmf
 import pano_scrobbler.composeapp.generated.resources.palette_expressive
 import pano_scrobbler.composeapp.generated.resources.palette_tonal_spot
@@ -82,6 +100,7 @@ import pano_scrobbler.composeapp.generated.resources.palette_vibrant
 import pano_scrobbler.composeapp.generated.resources.pref_themes
 import pano_scrobbler.composeapp.generated.resources.random_text
 import pano_scrobbler.composeapp.generated.resources.system_colors
+import pano_scrobbler.composeapp.generated.resources.white
 
 @Composable
 fun ThemeChooserScreen(
@@ -89,16 +108,33 @@ fun ThemeChooserScreen(
     modifier: Modifier = Modifier,
 ) {
     val isLicenseValid = LocalLicenseValidState.current
-    val themeHue by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { it.themeHue }
-    val dynamic by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { it.themeDynamic }
-    val dayNightMode by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { it.themeDayNight }
-    val random by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { it.themeRandom }
+    val mainPrefs by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { it }
     val randomHue by remember { ThemeUtils.randomHueForProcess }
-    val alpha by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { it.themeAlpha }
+    val alpha = mainPrefs.themeAlpha
     val alphaIntPercent = (alpha * 100).toInt()
     val themeAttributes = LocalThemeAttributes.current
+    val isDark = themeAttributes.isDark
+    val dayNightMode = mainPrefs.themeDayNight
+
+    val themeHue = if (isDark) mainPrefs.themeHue else mainPrefs.themeHueLight
+    val dynamic = if (isDark) mainPrefs.themeDynamic else mainPrefs.themeDynamicLight
+    val random = if (isDark) mainPrefs.themeRandom else mainPrefs.themeRandomLight
+    val custom = if (isDark) mainPrefs.themeCustom else mainPrefs.themeCustomLight
+    val customHex = if (isDark) mainPrefs.themeCustomHex else mainPrefs.themeCustomHexLight
+    val contrastMode = if (isDark) mainPrefs.themeContrast else mainPrefs.themeContrastLight
+    val themeStyle = if (isDark) mainPrefs.themeStyle else mainPrefs.themeStyleLight
+
     val scope = rememberCoroutineScope()
     val enableExperimental = false // todo testing only
+    var showCustomHexDialog by remember { mutableStateOf(false) }
+
+    val contrastEntries = remember(isDark) {
+        if (isDark) {
+            listOf(ContrastMode.LOW, ContrastMode.MEDIUM, ContrastMode.HIGH, ContrastMode.BLACK)
+        } else {
+            listOf(ContrastMode.LOW, ContrastMode.MEDIUM, ContrastMode.HIGH, ContrastMode.WHITE)
+        }
+    }
 
     val previewColors =
         remember(themeAttributes.isDark, themeAttributes.style, themeAttributes.contrastMode) {
@@ -118,6 +154,42 @@ fun ThemeChooserScreen(
         }
     }
 
+    fun saveTheme(
+        hue: Float? = null,
+        style: String? = null,
+        contrast: ContrastMode? = null,
+        dynamic: Boolean? = null,
+        random: Boolean? = null,
+        custom: Boolean? = null,
+        customHex: String? = null,
+    ) {
+        scope.launch {
+            PlatformStuff.mainPrefs.updateData {
+                if (isDark) {
+                    it.copy(
+                        themeHue = hue ?: it.themeHue,
+                        themeStyle = style ?: it.themeStyle,
+                        themeContrast = contrast ?: it.themeContrast,
+                        themeDynamic = dynamic ?: it.themeDynamic,
+                        themeRandom = random ?: it.themeRandom,
+                        themeCustom = custom ?: it.themeCustom,
+                        themeCustomHex = customHex ?: it.themeCustomHex,
+                    )
+                } else {
+                    it.copy(
+                        themeHueLight = hue ?: it.themeHueLight,
+                        themeStyleLight = style ?: it.themeStyleLight,
+                        themeContrastLight = contrast ?: it.themeContrastLight,
+                        themeDynamicLight = dynamic ?: it.themeDynamicLight,
+                        themeRandomLight = random ?: it.themeRandomLight,
+                        themeCustomLight = custom ?: it.themeCustomLight,
+                        themeCustomHexLight = customHex ?: it.themeCustomHexLight,
+                    )
+                }
+            }
+        }
+    }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -127,23 +199,40 @@ fun ThemeChooserScreen(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier
-                .alpha(if (dynamic) 0.5f else 1f)
         ) {
             Text(
-                text = stringResource(Res.string.contrast),
+                text = stringResource(Res.string.base_theme),
                 style = MaterialTheme.typography.bodyLarge,
             )
 
-            ContrastMode.entries.forEach {
+            DayNightMode.entries.forEach {
                 FilterChip(
                     label = { it.Label() },
-                    enabled = !dynamic,
-                    selected = themeAttributes.contrastMode == it,
+                    selected = dayNightMode == it,
+                    enabled = isLicenseValid,
                     shapes = FilterChipDefaults.shapes(),
+                    colors = if (themeAttributes.useOutlinedStyle) {
+                        FilterChipDefaults.filterChipColors(
+                            containerColor = Color.Transparent,
+                            selectedContainerColor = Color.Transparent,
+                            labelColor = MaterialTheme.colorScheme.onSurface,
+                            selectedLabelColor = MaterialTheme.colorScheme.primary,
+                        )
+                    } else {
+                        FilterChipDefaults.filterChipColors()
+                    },
+                    border = if (themeAttributes.useOutlinedStyle) {
+                        if (dayNightMode == it) {
+                            BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+                        } else {
+                            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        }
+                    } else {
+                        FilterChipDefaults.filterChipBorder(enabled = isLicenseValid, selected = dayNightMode == it)
+                    },
                     onClick = {
                         save {
-                            copy(themeContrast = it)
+                            copy(themeDayNight = it)
                         }
                     }
                 )
@@ -176,18 +265,43 @@ fun ThemeChooserScreen(
         }
 
         Row(
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .alpha(if (dynamic) 0.5f else 1f)
         ) {
-            DayNightMode.entries.forEach {
+            Text(
+                text = stringResource(Res.string.contrast),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+
+            contrastEntries.forEach {
                 FilterChip(
                     label = { it.Label() },
-                    selected = dayNightMode == it,
-                    enabled = isLicenseValid,
+                    enabled = !dynamic,
+                    selected = themeAttributes.contrastMode == it,
                     shapes = FilterChipDefaults.shapes(),
-                    onClick = {
-                        save {
-                            copy(themeDayNight = it)
+                    colors = if (themeAttributes.useOutlinedStyle) {
+                        FilterChipDefaults.filterChipColors(
+                            containerColor = Color.Transparent,
+                            selectedContainerColor = Color.Transparent,
+                            labelColor = MaterialTheme.colorScheme.onSurface,
+                            selectedLabelColor = MaterialTheme.colorScheme.primary,
+                        )
+                    } else {
+                        FilterChipDefaults.filterChipColors()
+                    },
+                    border = if (themeAttributes.useOutlinedStyle) {
+                        if (themeAttributes.contrastMode == it) {
+                            BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+                        } else {
+                            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                         }
+                    } else {
+                        FilterChipDefaults.filterChipBorder(enabled = !dynamic, selected = themeAttributes.contrastMode == it)
+                    },
+                    onClick = {
+                        saveTheme(contrast = it)
                     }
                 )
             }
@@ -195,7 +309,14 @@ fun ThemeChooserScreen(
 
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
+            itemVerticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.alpha(if (dynamic) 0.5f else 1f)
         ) {
+            Text(
+                text = stringResource(Res.string.color_style),
+                style = MaterialTheme.typography.bodyLarge,
+            )
+
             PaletteStyle.entries
                 .filter { it != PaletteStyle.Cmf || enableExperimental }
                 .forEach {
@@ -204,10 +325,27 @@ fun ThemeChooserScreen(
                         selected = themeAttributes.style == it,
                         enabled = isLicenseValid && !dynamic,
                         shapes = FilterChipDefaults.shapes(),
-                        onClick = {
-                            save {
-                                copy(themeStyle = it.name)
+                        colors = if (themeAttributes.useOutlinedStyle) {
+                            FilterChipDefaults.filterChipColors(
+                                containerColor = Color.Transparent,
+                                selectedContainerColor = Color.Transparent,
+                                labelColor = MaterialTheme.colorScheme.onSurface,
+                                selectedLabelColor = MaterialTheme.colorScheme.primary,
+                            )
+                        } else {
+                            FilterChipDefaults.filterChipColors()
+                        },
+                        border = if (themeAttributes.useOutlinedStyle) {
+                            if (themeAttributes.style == it) {
+                                BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
+                            } else {
+                                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                             }
+                        } else {
+                            FilterChipDefaults.filterChipBorder(enabled = isLicenseValid && !dynamic, selected = themeAttributes.style == it)
+                        },
+                        onClick = {
+                            saveTheme(style = it.name)
                         }
                     )
                 }
@@ -216,9 +354,12 @@ fun ThemeChooserScreen(
         HueSlider(
             hue = if (random) randomHue else themeHue,
             onHueChange = {
-                save {
-                    copy(themeHue = it, themeDynamic = false, themeRandom = false)
-                }
+                saveTheme(
+                    hue = it,
+                    dynamic = false,
+                    random = false,
+                    custom = false,
+                )
             },
             enabled = isLicenseValid,
             modifier = Modifier
@@ -237,17 +378,17 @@ fun ThemeChooserScreen(
             ThemeUtils.themeHues.forEach { hue ->
                 ThemeSwatch(
                     previewColors = previewColors.getValue(hue),
-                    selected = themeHue == hue && !dynamic && !random,
+                    selected = themeHue == hue && !dynamic && !random && !custom,
                     onClick = {
-                        save {
-                            copy(
-                                themeHue = hue,
-                                themeDynamic = false,
-                                themeRandom = false
-                            )
-                        }
+                        saveTheme(
+                            hue = hue,
+                            dynamic = false,
+                            random = false,
+                            custom = false,
+                        )
                     },
                     enabled = isLicenseValid,
+                    useOutlined = themeAttributes.useOutlinedStyle,
                 )
             }
 
@@ -258,15 +399,15 @@ fun ThemeChooserScreen(
                     selected = dynamic,
                     onCheckedChange = {
                         if (it) {
-                            save {
-                                copy(
-                                    themeDynamic = true,
-                                    themeRandom = false
-                                )
-                            }
+                            saveTheme(
+                                dynamic = true,
+                                random = false,
+                                custom = false,
+                            )
                         }
                     },
                     enabled = isLicenseValid,
+                    useOutlined = themeAttributes.useOutlinedStyle,
                 )
             }
 
@@ -276,17 +417,117 @@ fun ThemeChooserScreen(
                 selected = random,
                 onCheckedChange = {
                     if (it) {
-                        save {
-                            copy(
-                                themeRandom = true,
-                                themeDynamic = false
-                            )
-                        }
+                        saveTheme(
+                            random = true,
+                            dynamic = false,
+                            custom = false,
+                        )
                     } else {
                         ThemeUtils.randomizeHue()
                     }
                 },
                 enabled = isLicenseValid,
+                useOutlined = themeAttributes.useOutlinedStyle,
+            )
+
+            ThemeSwatchLikeButton(
+                icon = Icons.Colorize,
+                text = if (custom && customHex.isNotBlank()) "#${customHex.uppercase()}" else stringResource(Res.string.custom),
+                selected = custom && !dynamic && !random,
+                onCheckedChange = {
+                    showCustomHexDialog = true
+                },
+                enabled = isLicenseValid,
+                useOutlined = themeAttributes.useOutlinedStyle,
+                colorPreview = if (custom && customHex.isNotBlank()) ThemeUtils.parseHexColor(customHex) else null,
+            )
+        }
+
+        if (showCustomHexDialog) {
+            var hexInput by remember {
+                mutableStateOf(
+                    if (customHex.isNotBlank()) {
+                        if (customHex.startsWith("#")) customHex else "#$customHex"
+                    } else "#"
+                )
+            }
+            val parsedColor = remember(hexInput) { ThemeUtils.parseHexColor(hexInput) }
+            val isValid = parsedColor != null
+
+            AlertDialog(
+                onDismissRequest = { showCustomHexDialog = false },
+                title = {
+                    Text(stringResource(Res.string.custom_hex_title))
+                },
+                text = {
+                    if (themeAttributes.blurSubWindow) {
+                        ApplyWindowBlur(
+                            behind = Stuff.BLUR_BACKDROP_RADIUS_DP,
+                            bg = Stuff.BLUR_FROSTED_RADIUS_DP
+                        )
+                    }
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(if (isValid) Color(parsedColor) else Color.Transparent)
+                                .border(
+                                    2.dp,
+                                    if (isValid) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.error,
+                                    CircleShape
+                                )
+                        )
+
+                        PanoOutlinedTextField(
+                            value = hexInput,
+                            onValueChange = { input ->
+                                val filtered = input.filter { it == '#' || it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
+                                hexInput = if (filtered.startsWith("#")) {
+                                    "#" + filtered.removePrefix("#").take(6).uppercase()
+                                } else {
+                                    "#" + filtered.take(6).uppercase()
+                                }
+                            },
+                            label = { Text(stringResource(Res.string.custom_hex_hint)) },
+                            singleLine = true,
+                            isError = !isValid && hexInput.length > 1,
+                            supportingText = if (!isValid && hexInput.length > 1) {
+                                { Text(stringResource(Res.string.invalid_hex)) }
+                            } else null,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        enabled = isValid,
+                        onClick = {
+                            if (isValid) {
+                                saveTheme(
+                                    custom = true,
+                                    customHex = hexInput.removePrefix("#"),
+                                    dynamic = false,
+                                    random = false,
+                                )
+                                showCustomHexDialog = false
+                            }
+                        }
+                    ) {
+                        Text(stringResource(Res.string.ok))
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showCustomHexDialog = false }
+                    ) {
+                        Text(stringResource(Res.string.cancel))
+                    }
+                }
             )
         }
 
@@ -396,6 +637,8 @@ private fun ContrastMode.Label() {
         ContrastMode.LOW -> Text(stringResource(Res.string.low))
         ContrastMode.MEDIUM -> Text(stringResource(Res.string.medium))
         ContrastMode.HIGH -> Text(stringResource(Res.string.high))
+        ContrastMode.BLACK -> Text(stringResource(Res.string.black))
+        ContrastMode.WHITE -> Text(stringResource(Res.string.white))
     }
 }
 
@@ -416,7 +659,14 @@ private fun ThemeSwatch(
     enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    useOutlined: Boolean = false,
 ) {
+    val borderModifier = if (useOutlined && selected) {
+        Modifier.border(2.5.dp, MaterialTheme.colorScheme.primary, ButtonDefaults.shape)
+    } else {
+        Modifier
+    }
+
     FilledTonalToggleButton(
         checked = selected,
         onCheckedChange = {
@@ -425,9 +675,18 @@ private fun ThemeSwatch(
         },
         contentPadding = PaddingValues.Zero,
         enabled = enabled,
+        colors = if (useOutlined) {
+            FilledTonalToggleButtonDefaults.colors(
+                containerColor = Color.Transparent,
+                checkedContainerColor = Color.Transparent,
+            )
+        } else {
+            FilledTonalToggleButtonDefaults.colors()
+        },
         modifier = modifier
             .size(64.dp)
             .alpha(if (enabled) 1f else 0.5f)
+            .then(borderModifier)
     ) {
         Box(
             modifier = Modifier
@@ -486,21 +745,53 @@ private fun ThemeSwatchLikeButton(
     enabled: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    useOutlined: Boolean = false,
+    colorPreview: Int? = null,
 ) {
+    val borderModifier = if (useOutlined) {
+        if (selected) {
+            Modifier.border(2.dp, MaterialTheme.colorScheme.primary, ButtonDefaults.shape)
+        } else {
+            Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, ButtonDefaults.shape)
+        }
+    } else {
+        Modifier
+    }
+
     FilledTonalToggleButton(
         checked = selected,
         onCheckedChange = onCheckedChange,
         enabled = enabled,
+        colors = if (useOutlined) {
+            FilledTonalToggleButtonDefaults.colors(
+                containerColor = Color.Transparent,
+                checkedContainerColor = Color.Transparent,
+                checkedContentColor = MaterialTheme.colorScheme.primary,
+            )
+        } else {
+            FilledTonalToggleButtonDefaults.colors()
+        },
         modifier = modifier
             .alpha(if (enabled) 1f else 0.5f)
+            .then(borderModifier)
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = if (!selected) icon else Icons.CheckCircleFilled,
-                contentDescription = null
-            )
+            if (colorPreview != null) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(Color(colorPreview))
+                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                )
+            } else {
+                Icon(
+                    imageVector = if (!selected) icon else Icons.CheckCircleFilled,
+                    contentDescription = null
+                )
+            }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = text,

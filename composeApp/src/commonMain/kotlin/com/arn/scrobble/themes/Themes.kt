@@ -20,6 +20,7 @@ import com.arn.scrobble.billing.LicenseState
 import com.arn.scrobble.billing.LocalLicenseValidState
 import com.arn.scrobble.pref.MainPrefs
 import com.arn.scrobble.ui.getActivityOrNull
+import com.arn.scrobble.themes.ThemeUtils.withPureBackground
 import com.arn.scrobble.utils.PlatformStuff
 import com.arn.scrobble.utils.Stuff.collectAsStateWithInitialValue
 import com.arn.scrobble.utils.VariantStuff
@@ -29,26 +30,14 @@ fun AppTheme(
     onInitDone: () -> Unit = {},
     content: @Composable () -> Unit,
 ) {
-    val prefsVersion by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { it.version }
+    val mainPrefs by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { it }
+    val prefsVersion = mainPrefs.version
     val licenseState by VariantStuff.billingRepository.licenseState.collectAsStateWithLifecycle()
-    val themeHue by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue {
-        it.themeHue.coerceIn(0f..360f)
-    }
-    val themeStyle by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { p ->
-        PaletteStyle.entries.find { it.name == p.themeStyle } ?: ThemeUtils.defaultThemeStyle
-    }
-    val dynamic by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { it.themeDynamic }
-    val random by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { it.themeRandom }
     val randomHue by remember { ThemeUtils.randomHueForProcess }
-    val dayNightMode by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { it.themeDayNight }
-    val contrastMode by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { it.themeContrast }
-    val blurMainWindowPref by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue {
-        it.themeBlurMainWindow
-    }
+    val dayNightMode = mainPrefs.themeDayNight
+    val blurMainWindowPref = mainPrefs.themeBlurMainWindow
     var osWindowBlur by rememberSaveable { mutableStateOf(false) }
-    val blurSubWindowPref by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue {
-        it.themeBlurSubWindow
-    }
+    val blurSubWindowPref = mainPrefs.themeBlurSubWindow
     val blurMainWindow by remember(blurMainWindowPref, osWindowBlur) {
         mutableStateOf(PlatformStuff.supportsBlur && blurMainWindowPref && osWindowBlur)
     }
@@ -57,12 +46,10 @@ fun AppTheme(
         mutableStateOf(PlatformStuff.supportsBlur && blurSubWindowPref && osWindowBlur)
     }
 
-    val alpha by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue {
-        if (PlatformStuff.isTv)
-            1f
-        else
-            it.themeAlpha.coerceIn(MainPrefs.PREF_MIN_ALPHA, 1f)
-    }
+    val alpha = if (PlatformStuff.isTv)
+        1f
+    else
+        mainPrefs.themeAlpha.coerceIn(MainPrefs.PREF_MIN_ALPHA, 1f)
 
     val isSystemInDarkTheme by isSystemInDarkThemeNative()
     val activity = getActivityOrNull()
@@ -84,6 +71,7 @@ fun AppTheme(
                     themeAlpha = 1f,
                     themeDynamic = false,
                     themeRandom = false,
+                    themeCustom = false,
                     themeBlurMainWindow = false,
                     themeBlurSubWindow = false,
                 )
@@ -98,6 +86,23 @@ fun AppTheme(
             else
                 dayNightMode == DayNightMode.DARK || (dayNightMode == DayNightMode.SYSTEM && isSystemInDarkTheme)
         )
+    }
+
+    val themeHue = if (isDark) mainPrefs.themeHue.coerceIn(0f..360f) else mainPrefs.themeHueLight.coerceIn(0f..360f)
+    val themeStyle = if (isDark) {
+        PaletteStyle.entries.find { it.name == mainPrefs.themeStyle } ?: ThemeUtils.defaultThemeStyle
+    } else {
+        PaletteStyle.entries.find { it.name == mainPrefs.themeStyleLight } ?: ThemeUtils.defaultThemeStyle
+    }
+    val dynamic = if (isDark) mainPrefs.themeDynamic else mainPrefs.themeDynamicLight
+    val random = if (isDark) mainPrefs.themeRandom else mainPrefs.themeRandomLight
+    val custom = if (isDark) mainPrefs.themeCustom else mainPrefs.themeCustomLight
+    val customHex = if (isDark) mainPrefs.themeCustomHex else mainPrefs.themeCustomHexLight
+    val rawContrastMode = if (isDark) mainPrefs.themeContrast else mainPrefs.themeContrastLight
+    val contrastMode = when {
+        isDark && rawContrastMode == ContrastMode.WHITE -> ContrastMode.HIGH
+        !isDark && rawContrastMode == ContrastMode.BLACK -> ContrastMode.HIGH
+        else -> rawContrastMode
     }
 
     val themeAttributes = remember(
@@ -129,6 +134,7 @@ fun AppTheme(
             style = themeStyle,
             avatarContainerColors = avatarColors.map { it.first },
             avatarColors = avatarColors.map { it.second },
+            useOutlinedStyle = contrastMode.isAmoled,
         )
     }
 
@@ -140,13 +146,14 @@ fun AppTheme(
                     style = PaletteStyle.TonalSpot,
                     isDark = true,
                     contrastMode = contrastMode
-                )
+                ).withPureBackground(contrastMode)
             }
         }
 
         dynamic && PlatformStuff.supportsDynamicColors -> {
-            remember(isDark, alpha, blurSubWindow) {
+            remember(isDark, alpha, blurSubWindow, contrastMode) {
                 getDynamicColorScheme(activity, isDark)
+                    .withPureBackground(contrastMode)
                     .withAlpha(alpha, blurSubWindow)
             }
         }
@@ -159,20 +166,26 @@ fun AppTheme(
                 isDark,
                 random,
                 randomHue,
+                custom,
+                customHex,
                 alpha,
                 blurSubWindow
             ) {
-                val hue = if (random)
-                    randomHue
-                else
-                    themeHue
+                val seedColor = when {
+                    custom && customHex.isNotBlank() -> {
+                        ThemeUtils.parseHexColor(customHex) ?: ThemeUtils.getThemeColor(themeHue)
+                    }
+                    random -> ThemeUtils.getThemeColor(randomHue)
+                    else -> ThemeUtils.getThemeColor(themeHue)
+                }
 
                 ThemeUtils.materialColorScheme(
-                    seedColor = ThemeUtils.getThemeColor(hue),
+                    seedColor = seedColor,
                     isDark = isDark,
                     style = themeStyle,
                     contrastMode = contrastMode,
-                ).withAlpha(alpha, blurSubWindow)
+                ).withPureBackground(contrastMode)
+                .withAlpha(alpha, blurSubWindow)
             }
         }
     }

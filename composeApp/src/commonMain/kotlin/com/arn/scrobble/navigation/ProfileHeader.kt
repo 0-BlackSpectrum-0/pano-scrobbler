@@ -25,7 +25,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
+import com.arn.scrobble.ui.PanoFilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -543,8 +543,7 @@ private fun ColumnScope.ProfileTopLevelNav(
     val isLicenseValid = LocalLicenseValidState.current
 
     if (!isLicenseValid) {
-        FilledTonalButton(
-            shapes = ButtonDefaults.shapes(),
+        PanoFilledTonalButton(
             onClick = {
                 onNavigate(PanoRoute.Billing)
             },

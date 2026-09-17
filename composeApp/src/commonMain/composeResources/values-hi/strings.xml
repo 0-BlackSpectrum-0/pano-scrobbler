@@ -250,4 +250,12 @@
     <string name="pref_check_updates">नए अपडेट की जाँच करें</string>
     <string name="update_available" formatted="true" comment="%1= the version number">अपडेट उपलब्ध है: %1$s</string>
     <string name="download" comment="Its a verb">डाउनलोड</string>
+    <string name="black">काला</string>
+    <string name="white">सफ़ेद</string>
+    <string name="base_theme">मूल थीम</string>
+    <string name="color_style">रंग शैली</string>
+    <string name="custom">कस्टम</string>
+    <string name="custom_hex_title">कस्टम एक्सेंट रंग</string>
+    <string name="custom_hex_hint">हेक्स रंग (#RRGGBB)</string>
+    <string name="invalid_hex">अमान्य हेक्स रंग</string>
 </resources>

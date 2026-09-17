@@ -51,7 +51,7 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalIconButton
+import com.arn.scrobble.ui.PanoFilledTonalIconButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.Icon
@@ -1567,7 +1567,7 @@ private fun PanoBottomAppBar(
         if (hasProfileButton) {
             val shape = CircleShape
 
-            FilledTonalIconButton(
+            PanoFilledTonalIconButton(
                 onClick = onProfileClicked,
                 shapes = IconButtonDefaults.shapes(),
                 modifier = Modifier

@@ -351,4 +351,12 @@
     <string name="billing_sharing">共有時にアプリ名を含めない</string>
     <string name="billing_scrobble_source">Scrobble元のアプリの記録やそのアプリでの楽曲検索</string>
     <string name="billing_regex_extract">正規表現を使用してカスタムメタデータ抽出ルールを記述</string>
+    <string name="black">ブラック</string>
+    <string name="white">ホワイト</string>
+    <string name="base_theme">ベーステーマ</string>
+    <string name="color_style">カラースタイル</string>
+    <string name="custom">カスタム</string>
+    <string name="custom_hex_title">カスタムアクセントカラー</string>
+    <string name="custom_hex_hint">HEXカラー (#RRGGBB)</string>
+    <string name="invalid_hex">無効なHEXカラー</string>
 </resources>

@@ -12,6 +12,7 @@ data class ThemeAttributes(
     val style: PaletteStyle,
     val avatarColors: List<Color>,
     val avatarContainerColors: List<Color>,
+    val useOutlinedStyle: Boolean = false,
 )
 
 val LocalThemeAttributes = compositionLocalOf<ThemeAttributes> {

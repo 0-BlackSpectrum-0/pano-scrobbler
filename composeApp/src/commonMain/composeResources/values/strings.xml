@@ -365,6 +365,14 @@
     <string name="high" comment="As in high/medium/low">High</string>
     <string name="medium" comment="As in high/medium/low">Medium</string>
     <string name="low" comment="As in high/medium/low">Low</string>
+    <string name="black" comment="Pure black AMOLED contrast mode">Black</string>
+    <string name="white" comment="Pure white contrast mode">White</string>
+    <string name="base_theme" comment="Base theme selector label: Auto, Light, Dark">Base theme</string>
+    <string name="color_style" comment="Color palette style label: Pastel, Bold, Vibrant">Color style</string>
+    <string name="custom" comment="Custom accent color">Custom</string>
+    <string name="custom_hex_title" comment="Title for custom hex color dialog">Custom accent color</string>
+    <string name="custom_hex_hint" comment="Hint for hex color input">Hex color (#RRGGBB)</string>
+    <string name="invalid_hex" comment="Error message when invalid hex color is entered">Invalid hex color</string>
     <string name="needs_plugin" comment="Used for some desktop media players">Some apps need plugins</string>
     <string name="reload" comment="Reload or refresh">Reload</string>
     <string name="pref_tray_icon_theme" comment="like dark/light/auto">Tray icon theme</string>

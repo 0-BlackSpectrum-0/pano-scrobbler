@@ -21,15 +21,20 @@ enum class DayNightMode {
 }
 
 enum class ContrastMode {
-    LOW, MEDIUM, HIGH
+    LOW, MEDIUM, HIGH, BLACK, WHITE
 }
 
-private val ContrastMode.contrastLevel: Double
+val ContrastMode.contrastLevel: Double
     get() = when (this) {
-        LOW -> 0.0
-        MEDIUM -> 0.5
-        HIGH -> 1.0
+        ContrastMode.LOW -> 0.0
+        ContrastMode.MEDIUM -> 0.5
+        ContrastMode.HIGH,
+        ContrastMode.BLACK,
+        ContrastMode.WHITE -> 1.0
     }
+
+val ContrastMode.isAmoled: Boolean
+    get() = this == ContrastMode.BLACK || this == ContrastMode.WHITE
 
 // Curated subset
 enum class PaletteStyle {
@@ -221,6 +226,61 @@ object ThemeUtils {
     // Hct calculation is expensive
     fun getThemeColor(hue: Float, chroma: Double = DEFAULT_CHROMA, tone: Double = DEFAULT_TONE) =
         Hct.from(hue.toDouble(), chroma = chroma, tone = tone).toInt()
+
+    fun parseHexColor(hex: String): Int? {
+        val cleaned = hex.trim().removePrefix("#")
+        val fullHex = when (cleaned.length) {
+            3 -> "${cleaned[0]}${cleaned[0]}${cleaned[1]}${cleaned[1]}${cleaned[2]}${cleaned[2]}"
+            6 -> cleaned
+            8 -> cleaned.substring(2)
+            else -> return null
+        }
+        return try {
+            val r = fullHex.substring(0, 2).toInt(16)
+            val g = fullHex.substring(2, 4).toInt(16)
+            val b = fullHex.substring(4, 6).toInt(16)
+            (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun colorToHex(color: Int): String {
+        val r = ((color shr 16) and 0xFF).toString(16).padStart(2, '0').uppercase()
+        val g = ((color shr 8) and 0xFF).toString(16).padStart(2, '0').uppercase()
+        val b = (color and 0xFF).toString(16).padStart(2, '0').uppercase()
+        return "#$r$g$b"
+    }
+
+    fun ColorScheme.withPureBackground(contrastMode: ContrastMode): ColorScheme {
+        return when (contrastMode) {
+            ContrastMode.BLACK -> copy(
+                background = Color.Black,
+                surface = Color.Black,
+                surfaceDim = Color.Black,
+                surfaceBright = Color.Black,
+                surfaceContainerLowest = Color.Black,
+                surfaceContainerLow = Color.Black,
+                surfaceContainer = Color.Black,
+                surfaceContainerHigh = Color.Black,
+                surfaceContainerHighest = Color.Black,
+                surfaceVariant = Color.Black,
+            )
+            ContrastMode.WHITE -> copy(
+                background = Color.White,
+                surface = Color.White,
+                surfaceDim = Color.White,
+                surfaceBright = Color.White,
+                surfaceContainerLowest = Color.White,
+                surfaceContainerLow = Color.White,
+                surfaceContainer = Color.White,
+                surfaceContainerHigh = Color.White,
+                surfaceContainerHighest = Color.White,
+                surfaceVariant = Color.White,
+            )
+            else -> this
+        }
+    }
 
 //    init {
 //        Logger.d {

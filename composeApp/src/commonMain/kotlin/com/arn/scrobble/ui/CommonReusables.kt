@@ -831,8 +831,7 @@ fun VerifyButton(
                 if (verifying) {
                     CircularWavyProgressIndicator()
                 } else {
-                    FilledTonalButton(
-                        shapes = ButtonDefaults.shapes(),
+                    PanoFilledTonalButton(
                         onClick = {
                             verifying = true
                             errorText = null
