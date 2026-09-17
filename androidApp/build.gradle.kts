@@ -3,6 +3,7 @@ import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
 import com.google.gms.googleservices.GoogleServicesPlugin
 import com.mikepenz.aboutlibraries.plugin.DuplicateMode
 import com.mikepenz.aboutlibraries.plugin.StrictMode
+import java.security.KeyStore
 
 plugins {
     alias(libs.plugins.android.application)
@@ -139,11 +140,10 @@ android {
             ?: System.getenv("KEYSTORE_PASSWORD")
             ?: System.getenv("ANDROID_KEYSTORE_PASSWORD")
 
-        val keyAlias = localProperties.getProperty("releaseGithub.alias")
+        val configuredAlias = localProperties.getProperty("releaseGithub.alias")
             ?: localProperties.getProperty("release.alias")
             ?: System.getenv("KEYSTORE_ALIAS")
             ?: System.getenv("KEY_ALIAS")
-            ?: "pano-key"
 
         val keyPassword = localProperties.getProperty("releaseGithub.password")
             ?: localProperties.getProperty("release.password")
@@ -151,15 +151,46 @@ android {
             ?: System.getenv("KEY_PASSWORD")
             ?: storePassword
 
-        if (resolvedKeystoreFile != null && !storePassword.isNullOrBlank() && !keyPassword.isNullOrBlank()) {
+        var actualAlias = configuredAlias
+        if (resolvedKeystoreFile != null && !storePassword.isNullOrBlank()) {
+            try {
+                val ks = KeyStore.getInstance("JKS")
+                resolvedKeystoreFile.inputStream().use { stream ->
+                    ks.load(stream, storePassword.toCharArray())
+                }
+                val aliases = ks.aliases().toList()
+                if (actualAlias.isNullOrBlank() || !aliases.contains(actualAlias)) {
+                    if (aliases.isNotEmpty()) {
+                        actualAlias = aliases.first()
+                    }
+                }
+            } catch (e: Exception) {
+                println("⚠️ [SIGNING] Note: could not inspect keystore aliases (${e.message})")
+            }
+        }
+
+        if (resolvedKeystoreFile != null && !storePassword.isNullOrBlank() && !keyPassword.isNullOrBlank() && !actualAlias.isNullOrBlank()) {
             register("releaseGithub") {
                 storeFile = resolvedKeystoreFile
                 this.storePassword = storePassword
-                this.keyAlias = keyAlias
+                this.keyAlias = actualAlias
                 this.keyPassword = keyPassword
                 enableV1Signing = true
                 enableV2Signing = true
             }
+            println("==================================================")
+            println("✅ [SIGNING] Registered releaseGithub signing config:")
+            println("   Keystore: ${resolvedKeystoreFile.path}")
+            println("   Alias: $actualAlias")
+            println("==================================================")
+        } else {
+            println("==================================================")
+            println("⚠️ [SIGNING] Custom release keystore not configured:")
+            println("   Keystore file exists: ${resolvedKeystoreFile != null} (${resolvedKeystoreFile?.path})")
+            println("   Store password set: ${!storePassword.isNullOrBlank()}")
+            println("   Alias: $actualAlias")
+            println("   Build will fall back to DEBUG signing config.")
+            println("==================================================")
         }
     }
 

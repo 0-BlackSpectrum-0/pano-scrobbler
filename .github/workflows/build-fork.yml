@@ -248,9 +248,28 @@ jobs:
 
       - name: Set up Android secrets
         shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_JKS }}
+          KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
-          if [ -n "${{ secrets.ANDROID_KEYSTORE_JKS }}" ]; then
-            echo "${{ secrets.ANDROID_KEYSTORE_JKS }}" | base64 -d - > androidApp/android-keystore.jks
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "Found ANDROID_KEYSTORE_JKS secret. Decoding..."
+            echo "$KEYSTORE_BASE64" | tr -d ' \r\n' | base64 -d > androidApp/android-keystore.jks
+            echo "Decoded androidApp/android-keystore.jks ($(wc -c < androidApp/android-keystore.jks) bytes)"
+          else
+            echo "WARNING: ANDROID_KEYSTORE_JKS secret is NOT set!"
+          fi
+
+          # Synchronize with local.properties (official Pano Scrobbler method)
+          if ! grep -q "^releaseGithub.keystorePath=" local.properties 2>/dev/null; then
+            echo "releaseGithub.keystorePath=androidApp/android-keystore.jks" >> local.properties
+          fi
+          if [ -n "$KEYSTORE_PASS" ] && ! grep -q "^releaseGithub.storePassword=" local.properties 2>/dev/null; then
+            echo "releaseGithub.storePassword=$KEYSTORE_PASS" >> local.properties
+            echo "releaseGithub.password=$KEYSTORE_PASS" >> local.properties
+          fi
+          if [ -n "${{ secrets.KEYSTORE_ALIAS }}" ] && ! grep -q "^releaseGithub.alias=" local.properties 2>/dev/null; then
+            echo "releaseGithub.alias=${{ secrets.KEYSTORE_ALIAS }}" >> local.properties
           fi
 
       - name: Update Android package name to org.blackspectrum.scrobbler
@@ -273,6 +292,17 @@ jobs:
           mkdir -p dist
           find androidApp/build/outputs/apk/ -type f -name "*.apk" -exec cp -v {} dist/pano-scrobbler-android-arm64-v8a.apk \;
           ls -la dist/
+
+          echo "=================================================="
+          echo "🔍 VERIFYING APK SIGNING CERTIFICATE"
+          echo "=================================================="
+          for apk in dist/*.apk; do
+            if [ -f "$apk" ]; then
+              echo "Inspecting: $apk"
+              keytool -printcert -jarfile "$apk" | grep -E "(Owner:|Issuer:|SHA256:)" || true
+            fi
+          done
+          echo "=================================================="
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
