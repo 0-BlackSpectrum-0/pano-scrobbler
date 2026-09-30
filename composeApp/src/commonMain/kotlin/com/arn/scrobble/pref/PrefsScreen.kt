@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
@@ -15,7 +16,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.ui.Alignment
 import com.arn.scrobble.ui.PanoOutlinedTextField
 import pano_scrobbler.composeapp.generated.resources.api_key_configured
 import pano_scrobbler.composeapp.generated.resources.api_key_not_configured
@@ -1250,8 +1250,8 @@ fun PrefsScreen(
     }
 
     if (showSpotifyDialog) {
-        var clientIdInput by remember(spotifyClientId) { mutableStateOf(spotifyClientId) }
-        var clientSecretInput by remember(spotifyClientSecret) { mutableStateOf(spotifyClientSecret) }
+        val clientIdState = rememberTextFieldState(spotifyClientId)
+        val clientSecretState = rememberTextFieldState(spotifyClientSecret)
         var enableApi by remember(useSpotify) { mutableStateOf(useSpotify) }
 
         AlertDialog(
@@ -1271,16 +1271,14 @@ fun PrefsScreen(
                     )
 
                     PanoOutlinedTextField(
-                        value = clientIdInput,
-                        onValueChange = { clientIdInput = it.trim() },
+                        state = clientIdState,
                         label = { Text(stringResource(Res.string.spotify_client_id)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
 
                     PanoOutlinedTextField(
-                        value = clientSecretInput,
-                        onValueChange = { clientSecretInput = it.trim() },
+                        state = clientSecretState,
                         label = { Text(stringResource(Res.string.spotify_client_secret)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
@@ -1305,12 +1303,14 @@ fun PrefsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
+                        val clientId = clientIdState.text.toString().trim()
+                        val clientSecret = clientSecretState.text.toString().trim()
                         coroutineScope.launch {
                             mainPrefs.updateData {
                                 it.copy(
-                                    spotifyClientId = clientIdInput,
-                                    spotifyClientSecret = clientSecretInput,
-                                    spotifyApi = enableApi && clientIdInput.isNotBlank(),
+                                    spotifyClientId = clientId,
+                                    spotifyClientSecret = clientSecret,
+                                    spotifyApi = enableApi && clientId.isNotBlank(),
                                     spotifyConsentLearnt = true
                                 )
                             }
@@ -1331,7 +1331,7 @@ fun PrefsScreen(
     }
 
     if (showDeezerDialog) {
-        var apiKeyInput by remember(deezerApiKey) { mutableStateOf(deezerApiKey) }
+        val apiKeyInputState = rememberTextFieldState(deezerApiKey)
         var enableApi by remember(deezerApi) { mutableStateOf(deezerApi) }
 
         AlertDialog(
@@ -1351,8 +1351,7 @@ fun PrefsScreen(
                     )
 
                     PanoOutlinedTextField(
-                        value = apiKeyInput,
-                        onValueChange = { apiKeyInput = it.trim() },
+                        state = apiKeyInputState,
                         label = { Text(stringResource(Res.string.deezer_api_key_hint)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
@@ -1377,10 +1376,11 @@ fun PrefsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
+                        val apiKey = apiKeyInputState.text.toString().trim()
                         coroutineScope.launch {
                             mainPrefs.updateData {
                                 it.copy(
-                                    deezerApiKey = apiKeyInput,
+                                    deezerApiKey = apiKey,
                                     deezerApi = enableApi
                                 )
                             }

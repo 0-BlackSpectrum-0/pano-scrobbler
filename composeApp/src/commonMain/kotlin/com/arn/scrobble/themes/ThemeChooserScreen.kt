@@ -35,11 +35,14 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSliderState
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -443,13 +446,13 @@ fun ThemeChooserScreen(
         }
 
         if (showCustomHexDialog) {
-            var hexInput by remember {
-                mutableStateOf(
-                    if (customHex.isNotBlank()) {
-                        if (customHex.startsWith("#")) customHex else "#$customHex"
-                    } else "#"
-                )
+            val initialHex = remember {
+                if (customHex.isNotBlank()) {
+                    if (customHex.startsWith("#")) customHex else "#$customHex"
+                } else "#"
             }
+            val hexState = rememberTextFieldState(initialHex)
+            val hexInput = hexState.text.toString()
             val parsedColor = remember(hexInput) { ThemeUtils.parseHexColor(hexInput) }
             val isValid = parsedColor != null
 
@@ -483,15 +486,7 @@ fun ThemeChooserScreen(
                         )
 
                         PanoOutlinedTextField(
-                            value = hexInput,
-                            onValueChange = { input ->
-                                val filtered = input.filter { it == '#' || it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
-                                hexInput = if (filtered.startsWith("#")) {
-                                    "#" + filtered.removePrefix("#").take(6).uppercase()
-                                } else {
-                                    "#" + filtered.take(6).uppercase()
-                                }
-                            },
+                            state = hexState,
                             label = { Text(stringResource(Res.string.custom_hex_hint)) },
                             singleLine = true,
                             isError = !isValid && hexInput.length > 1,
@@ -509,7 +504,7 @@ fun ThemeChooserScreen(
                             if (isValid) {
                                 saveTheme(
                                     custom = true,
-                                    customHex = hexInput.removePrefix("#"),
+                                    customHex = hexInput.trim().removePrefix("#"),
                                     dynamic = false,
                                     random = false,
                                 )
