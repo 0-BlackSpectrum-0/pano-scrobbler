@@ -30,6 +30,7 @@ class MusicEntryImageInterceptor : Interceptor {
     private val customSpotifyMappingsDao by lazy { PanoDb.db.getCustomSpotifyMappingsDao() }
     private val spotifyArtistSearchApproximate by lazy { PlatformStuff.mainPrefs.data.map { it.spotifyArtistSearchApproximate } }
     private val useSpotify by lazy { PlatformStuff.mainPrefs.data.map { it.spotifyApi } }
+    private val useDeezer by lazy { PlatformStuff.mainPrefs.data.map { it.deezerApi } }
 
     override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
         val musicEntryImageReq =
@@ -154,7 +155,25 @@ class MusicEntryImageInterceptor : Interceptor {
                     } else {
                         null
                     }
-                    imageUrls
+
+                    if ((imageUrls == null || imageUrls.mediumImage == null) && useDeezer.first()) {
+                        val deezerArtists = networkCallWithSemaphore {
+                            Requesters.deezerRequester.searchArtist(entry.name, limit = 3)
+                        }?.map { it.data }?.recover { emptyList() }?.getOrNull()
+
+                        val deezerMatch = deezerArtists?.find {
+                            it.name.equals(entry.name, ignoreCase = true) &&
+                                    (it.picture_medium != null || it.picture_big != null)
+                        } ?: deezerArtists?.firstOrNull { it.picture_medium != null || it.picture_big != null }
+
+                        if (deezerMatch != null) {
+                            FetchedImageUrls(deezerMatch.mediumImageUrl, deezerMatch.largeImageUrl)
+                        } else {
+                            imageUrls
+                        }
+                    } else {
+                        imageUrls
+                    }
                 }
 
                 is Album,
@@ -271,6 +290,41 @@ class MusicEntryImageInterceptor : Interceptor {
                                         }
                                     }
                                 }
+                            }
+                        }
+                    }
+                    if ((fetchedAlbumImageUrls == null || fetchedAlbumImageUrls.mediumImage == null) && album != null && artist != null) {
+                        if (useSpotify.first()) {
+                            val spotifyAlbums = networkCallWithSemaphore {
+                                Requesters.spotifyRequester.search(
+                                    "album:\"${album.name}\" artist:\"${artist.name}\"",
+                                    SpotifySearchType.album,
+                                    market = PlatformStuff.mainPrefs.data.map { it.spotifyCountryP }.first(),
+                                    limit = 3
+                                )
+                            }?.map { it.albums?.items.orEmpty() }?.recover { emptyList() }?.getOrNull()
+
+                            val spotifyMatch = spotifyAlbums?.find {
+                                it.name.equals(album.name, ignoreCase = true) && !it.images.isNullOrEmpty()
+                            } ?: spotifyAlbums?.firstOrNull { !it.images.isNullOrEmpty() }
+
+                            if (spotifyMatch != null) {
+                                fetchedAlbumImageUrls = FetchedImageUrls(spotifyMatch.mediumImageUrl, spotifyMatch.largeImageUrl)
+                            }
+                        }
+
+                        if ((fetchedAlbumImageUrls == null || fetchedAlbumImageUrls.mediumImage == null) && useDeezer.first()) {
+                            val deezerAlbums = networkCallWithSemaphore {
+                                Requesters.deezerRequester.searchAlbum(artist.name, album.name, limit = 3)
+                            }?.map { it.data }?.recover { emptyList() }?.getOrNull()
+
+                            val deezerMatch = deezerAlbums?.find {
+                                it.title.equals(album.name, ignoreCase = true) &&
+                                        (it.cover_medium != null || it.cover_big != null)
+                            } ?: deezerAlbums?.firstOrNull { it.cover_medium != null || it.cover_big != null }
+
+                            if (deezerMatch != null) {
+                                fetchedAlbumImageUrls = FetchedImageUrls(deezerMatch.mediumImageUrl, deezerMatch.largeImageUrl)
                             }
                         }
                     }

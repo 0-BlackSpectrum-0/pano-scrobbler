@@ -22,4 +22,33 @@ class DeezerRequester {
         trackId: Long,
     ) =
         client.getResult<DeezerTrack>("https://api.deezer.com/track/$trackId")
+
+    suspend fun searchArtist(
+        artist: String,
+        limit: Int = 3
+    ) =
+        client.getResult<DeezerArtistSearchResponse>("https://api.deezer.com/search/artist") {
+            parameter("q", artist)
+            parameter("limit", limit)
+        }
+
+    suspend fun searchAlbum(
+        artist: String,
+        album: String,
+        limit: Int = 3
+    ) =
+        client.getResult<DeezerAlbumSearchResponse>("https://api.deezer.com/search/album") {
+            parameter("q", "artist:\"$artist\" album:\"$album\"")
+            parameter("limit", limit)
+        }
+
+    suspend fun lookupAlbum(
+        albumId: Long
+    ) =
+        client.getResult<DeezerAlbum>("https://api.deezer.com/album/$albumId")
+
+    suspend fun lookupArtist(
+        artistId: Long
+    ) =
+        client.getResult<DeezerArtist>("https://api.deezer.com/artist/$artistId")
 }

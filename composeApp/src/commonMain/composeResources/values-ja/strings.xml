@@ -359,4 +359,13 @@
     <string name="custom_hex_title">カスタムアクセントカラー</string>
     <string name="custom_hex_hint">HEXカラー (#RRGGBB)</string>
     <string name="invalid_hex">無効なHEXカラー</string>
+    <string name="spotify_api_settings_desc">アートワーク用のClient IDとSecretを設定</string>
+    <string name="spotify_client_id">Client ID</string>
+    <string name="spotify_client_secret">Client Secret</string>
+    <string name="spotify_api_info">developer.spotify.com でアプリを作成してClient IDとClient Secretを取得してください。</string>
+    <string name="deezer_api_desc">カバーとアーティスト画像を取得（キー不要）</string>
+    <string name="deezer_api_key_hint">APIキー（任意）</string>
+    <string name="api_key_configured">設定済み</string>
+    <string name="api_key_not_configured">未設定</string>
+    <string name="enable_api">APIを有効化</string>
 </resources>

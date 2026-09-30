@@ -752,7 +752,7 @@ private fun ThemeSwatchLikeButton(
         if (selected) {
             Modifier.border(2.dp, MaterialTheme.colorScheme.primary, ButtonDefaults.shape)
         } else {
-            Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, ButtonDefaults.shape)
+            Modifier.border(1.dp, MaterialTheme.colorScheme.outline, ButtonDefaults.shape)
         }
     } else {
         Modifier
@@ -765,6 +765,7 @@ private fun ThemeSwatchLikeButton(
         colors = if (useOutlined) {
             FilledTonalToggleButtonDefaults.colors(
                 containerColor = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.onSurface,
                 checkedContainerColor = Color.Transparent,
                 checkedContentColor = MaterialTheme.colorScheme.primary,
             )

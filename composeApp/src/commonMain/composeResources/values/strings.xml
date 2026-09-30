@@ -457,4 +457,13 @@ Your purchases are managed by Google Play. They are linked with a Google Play ac
     <string name="billing_regex_extract">Write custom metadata extraction rules using regex</string>
     <string name="billing_max_devices_reached" formatted="true">This code has already been used on maximum (%1$d) devices.</string>
 
+    <string name="spotify_api_settings_desc">Configure Client ID and Secret for artwork</string>
+    <string name="spotify_client_id">Client ID</string>
+    <string name="spotify_client_secret">Client Secret</string>
+    <string name="spotify_api_info">Create an app at developer.spotify.com to get your Client ID and Client Secret.</string>
+    <string name="deezer_api_desc">Fetch covers and artist images (no key required)</string>
+    <string name="deezer_api_key_hint">API Key (optional)</string>
+    <string name="api_key_configured">Configured</string>
+    <string name="api_key_not_configured">Not configured</string>
+    <string name="enable_api">Enable API</string>
 </resources>

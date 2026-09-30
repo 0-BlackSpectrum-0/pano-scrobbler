@@ -258,4 +258,13 @@
     <string name="custom_hex_title">कस्टम एक्सेंट रंग</string>
     <string name="custom_hex_hint">हेक्स रंग (#RRGGBB)</string>
     <string name="invalid_hex">अमान्य हेक्स रंग</string>
+    <string name="spotify_api_settings_desc">आर्टवर्क के लिए क्लाइंट आईडी और सीक्रेट कॉन्फ़िगर करें</string>
+    <string name="spotify_client_id">क्लाइंट आईडी</string>
+    <string name="spotify_client_secret">क्लाइंट सीक्रेट</string>
+    <string name="spotify_api_info">क्लाइंट आईडी और क्लाइंट सीक्रेट प्राप्त करने के लिए developer.spotify.com पर एक ऐप बनाएं।</string>
+    <string name="deezer_api_desc">कवर और कलाकार छवियां लाएं (किसी कुंजी की आवश्यकता नहीं)</string>
+    <string name="deezer_api_key_hint">एपीआई कुंजी (वैकल्पिक)</string>
+    <string name="api_key_configured">कॉन्फ़िगर किया गया</string>
+    <string name="api_key_not_configured">कॉन्फ़िगर नहीं किया गया</string>
+    <string name="enable_api">एपीआई सक्षम करें</string>
 </resources>

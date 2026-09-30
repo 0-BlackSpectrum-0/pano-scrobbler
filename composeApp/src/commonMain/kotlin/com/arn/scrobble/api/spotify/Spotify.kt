@@ -1,13 +1,12 @@
 package com.arn.scrobble.api.spotify
 
-import com.arn.scrobble.BuildKonfig
 import com.arn.scrobble.api.CustomCachePlugin
 import com.arn.scrobble.api.Requesters
 import com.arn.scrobble.api.Requesters.getResult
 import com.arn.scrobble.api.Requesters.parseJsonBody
 import com.arn.scrobble.api.cache.ExpirationPolicy
 import com.arn.scrobble.api.invalidatableLazy
-import com.arn.scrobble.utils.Stuff
+import com.arn.scrobble.utils.PlatformStuff
 import io.ktor.client.plugins.auth.Auth
 import io.ktor.client.plugins.auth.providers.BearerTokens
 import io.ktor.client.plugins.auth.providers.bearer
@@ -17,7 +16,10 @@ import io.ktor.client.request.parameter
 import io.ktor.http.HttpHeaders
 import io.ktor.http.Url
 import io.ktor.http.parameters
+import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 
 class SpotifyRequester {
     private val _client = invalidatableLazy {
@@ -27,13 +29,10 @@ class SpotifyRequester {
             }
 
             install(Auth) {
-                val refreshToken = Stuff.xorWithKey(
-                    BuildKonfig.SPOTIFY_REFRESH_TOKEN,
-                    BuildKonfig.APP_ID
-                )
-
                 bearer {
                     loadTokens {
+                        val refreshToken = runCatching { getRefreshToken() }.getOrNull()
+                            ?: return@loadTokens null
                         BearerTokens(
                             "null",
                             refreshToken
@@ -41,6 +40,8 @@ class SpotifyRequester {
                     }
 
                     refreshTokens {
+                        val refreshToken = runCatching { getRefreshToken() }.getOrNull()
+                            ?: return@refreshTokens null
                         val tokenResponse = client.submitForm(
                             url = "https://accounts.spotify.com/api/token",
                             formParameters = parameters {
@@ -81,37 +82,67 @@ class SpotifyRequester {
         type: SpotifySearchType,
         market: String = "US",
         limit: Int = 10, // 10 is the max now
-    ) =
-        client.getResult<SpotifySearchResponse>("https://api.spotify.com/v1/search") {
+    ): Result<SpotifySearchResponse> {
+        if (!hasCredentials()) return Result.failure(IllegalStateException("Spotify credentials not configured"))
+        return client.getResult("https://api.spotify.com/v1/search") {
             parameter("q", query)
             parameter("type", type.name)
             parameter("limit", limit)
             parameter("market", market)
         }
+    }
 
     suspend fun artist(
         artistId: String,
         market: String = "US"
-    ) =
-        client.getResult<ArtistItem>("https://api.spotify.com/v1/artists/$artistId") {
+    ): Result<ArtistItem> {
+        if (!hasCredentials()) return Result.failure(IllegalStateException("Spotify credentials not configured"))
+        return client.getResult("https://api.spotify.com/v1/artists/$artistId") {
             parameter("market", market)
         }
+    }
 
     suspend fun album(
         albumId: String,
         market: String = "US"
-    ) =
-        client.getResult<AlbumItem>("https://api.spotify.com/v1/albums/$albumId") {
+    ): Result<AlbumItem> {
+        if (!hasCredentials()) return Result.failure(IllegalStateException("Spotify credentials not configured"))
+        return client.getResult("https://api.spotify.com/v1/albums/$albumId") {
             parameter("market", market)
         }
+    }
 
     suspend fun track(
         trackId: String,
         market: String = "US"
-    ) =
-        client.getResult<TrackItem>("https://api.spotify.com/v1/tracks/$trackId") {
+    ): Result<TrackItem> {
+        if (!hasCredentials()) return Result.failure(IllegalStateException("Spotify credentials not configured"))
+        return client.getResult("https://api.spotify.com/v1/tracks/$trackId") {
             parameter("market", market)
         }
+    }
+
+    companion object {
+        @OptIn(ExperimentalEncodingApi::class)
+        suspend fun getRefreshToken(): String {
+            val prefs = PlatformStuff.mainPrefs.data.first()
+            val clientId = prefs.spotifyClientId.trim()
+            val clientSecret = prefs.spotifyClientSecret.trim()
+            if (clientId.isNotBlank()) {
+                return if (clientSecret.isNotBlank()) {
+                    Base64.Default.encode("$clientId:$clientSecret".encodeToByteArray())
+                } else {
+                    clientId
+                }
+            }
+            throw IllegalStateException("Spotify credentials not configured")
+        }
+
+        suspend fun hasCredentials(): Boolean {
+            val prefs = PlatformStuff.mainPrefs.data.first()
+            return prefs.spotifyClientId.isNotBlank()
+        }
+    }
 }
 
 class SpotifyCacheExpirationPolicy : ExpirationPolicy {

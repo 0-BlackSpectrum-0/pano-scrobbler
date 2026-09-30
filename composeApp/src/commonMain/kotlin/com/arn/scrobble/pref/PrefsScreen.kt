@@ -3,13 +3,31 @@ package com.arn.scrobble.pref
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.Alignment
+import com.arn.scrobble.ui.PanoOutlinedTextField
+import pano_scrobbler.composeapp.generated.resources.api_key_configured
+import pano_scrobbler.composeapp.generated.resources.api_key_not_configured
+import pano_scrobbler.composeapp.generated.resources.cancel
+import pano_scrobbler.composeapp.generated.resources.deezer
+import pano_scrobbler.composeapp.generated.resources.deezer_api_desc
+import pano_scrobbler.composeapp.generated.resources.deezer_api_key_hint
+import pano_scrobbler.composeapp.generated.resources.enable_api
+import pano_scrobbler.composeapp.generated.resources.save
+import pano_scrobbler.composeapp.generated.resources.spotify
+import pano_scrobbler.composeapp.generated.resources.spotify_api_info
+import pano_scrobbler.composeapp.generated.resources.spotify_client_id
+import pano_scrobbler.composeapp.generated.resources.spotify_client_secret
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -204,10 +222,19 @@ fun PrefsScreen(
     mainPrefs.data.collectAsStateWithInitialValue { it.autoUpdates }
     val useSpotify by
     mainPrefs.data.collectAsStateWithInitialValue { it.spotifyApi }
+    val spotifyClientId by
+    mainPrefs.data.collectAsStateWithInitialValue { it.spotifyClientId }
+    val spotifyClientSecret by
+    mainPrefs.data.collectAsStateWithInitialValue { it.spotifyClientSecret }
     val spotifyCountryP by
     mainPrefs.data.collectAsStateWithInitialValue { it.spotifyCountryP }
     val deezerApi by
     mainPrefs.data.collectAsStateWithInitialValue { it.deezerApi }
+    val deezerApiKey by
+    mainPrefs.data.collectAsStateWithInitialValue { it.deezerApiKey }
+    var showSpotifyDialog by remember { mutableStateOf(false) }
+    var showDeezerDialog by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
     val extractFirstArtistPackages by
     mainPrefs.data.collectAsStateWithInitialValue { it.extractFirstArtistPackages }
     val demoMode by mainPrefs.data.collectAsStateWithInitialValue { it.demoModeP }
@@ -1015,6 +1042,40 @@ fun PrefsScreen(
                 }
             }
 
+        filteredItem(
+            "spotify_service",
+            Res.string.spotify
+        ) { title ->
+            TextPref(
+                text = title,
+                summary = if (spotifyClientId.isNotBlank()) {
+                    stringResource(Res.string.api_key_configured)
+                } else {
+                    stringResource(Res.string.api_key_not_configured)
+                },
+                onClick = {
+                    showSpotifyDialog = true
+                }
+            )
+        }
+
+        filteredItem(
+            "deezer_service",
+            Res.string.deezer
+        ) { title ->
+            TextPref(
+                text = title,
+                summary = if (deezerApi) {
+                    stringResource(Res.string.deezer_api_desc)
+                } else {
+                    stringResource(Res.string.disable)
+                },
+                onClick = {
+                    showDeezerDialog = true
+                }
+            )
+        }
+
         filteredItem(key = "delete", Res.string.delete_account) { title ->
             TextPref(
                 text = title,
@@ -1182,6 +1243,156 @@ fun PrefsScreen(
                 )
             }
         }
+    }
+
+    if (showSpotifyDialog) {
+        var clientIdInput by remember(spotifyClientId) { mutableStateOf(spotifyClientId) }
+        var clientSecretInput by remember(spotifyClientSecret) { mutableStateOf(spotifyClientSecret) }
+        var enableApi by remember(useSpotify) { mutableStateOf(useSpotify) }
+
+        AlertDialog(
+            onDismissRequest = { showSpotifyDialog = false },
+            title = {
+                Text(stringResource(Res.string.spotify))
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        stringResource(Res.string.spotify_api_info),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    PanoOutlinedTextField(
+                        value = clientIdInput,
+                        onValueChange = { clientIdInput = it.trim() },
+                        label = { Text(stringResource(Res.string.spotify_client_id)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    PanoOutlinedTextField(
+                        value = clientSecretInput,
+                        onValueChange = { clientSecretInput = it.trim() },
+                        label = { Text(stringResource(Res.string.spotify_client_secret)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            stringResource(Res.string.enable_api),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Switch(
+                            checked = enableApi,
+                            onCheckedChange = { enableApi = it }
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            mainPrefs.updateData {
+                                it.copy(
+                                    spotifyClientId = clientIdInput,
+                                    spotifyClientSecret = clientSecretInput,
+                                    spotifyApi = enableApi && clientIdInput.isNotBlank(),
+                                    spotifyConsentLearnt = true
+                                )
+                            }
+                            Requesters.spotifyRequester.invalidateClient()
+                        }
+                        showSpotifyDialog = false
+                    }
+                ) {
+                    Text(stringResource(Res.string.save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSpotifyDialog = false }) {
+                    Text(stringResource(Res.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showDeezerDialog) {
+        var apiKeyInput by remember(deezerApiKey) { mutableStateOf(deezerApiKey) }
+        var enableApi by remember(deezerApi) { mutableStateOf(deezerApi) }
+
+        AlertDialog(
+            onDismissRequest = { showDeezerDialog = false },
+            title = {
+                Text(stringResource(Res.string.deezer))
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        stringResource(Res.string.deezer_api_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    PanoOutlinedTextField(
+                        value = apiKeyInput,
+                        onValueChange = { apiKeyInput = it.trim() },
+                        label = { Text(stringResource(Res.string.deezer_api_key_hint)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            stringResource(Res.string.enable_api),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Switch(
+                            checked = enableApi,
+                            onCheckedChange = { enableApi = it }
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            mainPrefs.updateData {
+                                it.copy(
+                                    deezerApiKey = apiKeyInput,
+                                    deezerApi = enableApi
+                                )
+                            }
+                        }
+                        showDeezerDialog = false
+                    }
+                ) {
+                    Text(stringResource(Res.string.save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeezerDialog = false }) {
+                    Text(stringResource(Res.string.cancel))
+                }
+            }
+        )
     }
 }
 

@@ -191,8 +191,7 @@ buildkonfig {
         val lastfmSecret = localProperties.getProperty("lastfm.secret")
             ?: throw IllegalStateException("lastfm.secret not found in local.properties")
 
-        val spotifyRefreshToken = localProperties.getProperty("spotify.refreshToken")
-            ?: throw IllegalStateException("spotify.refreshToken not found in local.properties")
+        val spotifyRefreshToken = localProperties.getProperty("spotify.refreshToken") ?: ""
 
         buildConfigField(
             STRING,
@@ -209,7 +208,7 @@ buildkonfig {
         buildConfigField(
             STRING,
             "SPOTIFY_REFRESH_TOKEN",
-            xor(spotifyRefreshToken, APP_ID),
+            if (spotifyRefreshToken.isNotEmpty()) xor(spotifyRefreshToken, APP_ID) else "",
             const = false
         )
 
