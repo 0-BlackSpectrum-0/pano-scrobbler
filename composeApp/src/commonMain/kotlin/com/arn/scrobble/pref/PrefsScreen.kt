@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -39,6 +40,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -76,11 +78,11 @@ import com.arn.scrobble.ui.accountTypeLabel
 import com.arn.scrobble.ui.accountTypeStringRes
 import com.arn.scrobble.ui.getActivityOrNull
 import com.arn.scrobble.utils.LocaleUtils
+import com.arn.scrobble.utils.LocaleUtils.format
 import com.arn.scrobble.utils.PanoNotifications
 import com.arn.scrobble.utils.PlatformStuff
 import com.arn.scrobble.utils.Stuff
 import com.arn.scrobble.utils.Stuff.collectAsStateWithInitialValue
-import com.arn.scrobble.utils.Stuff.format
 import com.arn.scrobble.utils.setAppLocale
 import com.arn.scrobble.work.CommonWorkState
 import com.arn.scrobble.work.DigestWork
@@ -192,7 +194,7 @@ fun PrefsScreen(
     val scrobblerPausedTill by mainPrefs.data.collectAsStateWithInitialValue { it.scrobblerPausedTill }
     val allowedPackages by mainPrefs.data.collectAsStateWithInitialValue { it.allowedPackages }
     val temporaryScrobblePackages by mainPrefs.data.collectAsStateWithInitialValue { it.temporaryScrobblePackages }
-    val scrobbleSpotifyRemoteP by mainPrefs.data.collectAsStateWithInitialValue { it.scrobbleSpotifyRemoteP }
+    val scrobbleSpotifyRemote by mainPrefs.data.collectAsStateWithInitialValue { it.scrobbleSpotifyRemote }
     val autoDetectApps by mainPrefs.data.collectAsStateWithInitialValue { it.autoDetectApps }
     val delayPercent by mainPrefs.data.collectAsStateWithInitialValue { it.delayPercentP }
     val delaySecs by mainPrefs.data.collectAsStateWithInitialValue { it.delaySecsP }
@@ -239,8 +241,8 @@ fun PrefsScreen(
     mainPrefs.data.collectAsStateWithInitialValue { it.extractFirstArtistPackages }
     val demoMode by mainPrefs.data.collectAsStateWithInitialValue { it.demoModeP }
     val proxy by Requesters.proxy.collectAsStateWithLifecycle()
-    val scrobblableLabels by
-    mainPrefs.data.collectAsStateWithInitialValue { p -> p.scrobbleAccounts.associate { it.type to it.user.name } }
+    val userAccounts by
+    mainPrefs.data.collectAsStateWithInitialValue { p -> p.scrobbleAccounts.associateBy { it.type } }
     val updateProgress by remember {
         UpdaterWork.getProgress().filter { it.state == CommonWorkState.RUNNING }
     }.collectAsStateWithLifecycle(null)
@@ -453,7 +455,9 @@ fun PrefsScreen(
                 }
             )
 
-            Box {
+            Box(
+                modifier = Modifier.fillMaxWidth().wrapContentWidth(Alignment.End)
+            ) {
                 PanoDropdownMenu(
                     expanded = dropdownShown,
                     onDismissRequest = { dropdownShown = false },
@@ -618,7 +622,7 @@ fun PrefsScreen(
             ) { title ->
                 SwitchPref(
                     text = title,
-                    value = scrobbleSpotifyRemoteP,
+                    value = scrobbleSpotifyRemote,
                     copyToSave = { copy(scrobbleSpotifyRemote = it) }
                 )
             }
@@ -1036,7 +1040,7 @@ fun PrefsScreen(
                     AccountPref(
                         accountTypeLabel(accountType),
                         type = accountType,
-                        usernamesMap = scrobblableLabels,
+                        userAccount = userAccounts[accountType],
                         onNavigate = onNavigate
                     )
                 }

@@ -61,8 +61,8 @@ class SessListener(
                 blockedPackages,
                 autoDetectApps,
                 temporaryScrobblePackages,
-//                scrobblerEnabled, // now done directly in NLService
-            ) { allowed, blocked, autoDetect, tempApps ->
+                scrobblerEnabled, // also done in NLService
+            ) { _, _, _, _, _ ->
                 onActiveSessionsChanged(platformControllers)
                 val tokensToKeep = sessionTrackers
                     .filter { (k, v) ->

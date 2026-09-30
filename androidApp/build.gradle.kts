@@ -28,7 +28,7 @@ android {
 
     compileSdk {
         version = release(libs.versions.targetSdk.get().toInt()) {
-//            minorApiLevel = libs.versions.sdkMinor.get().toInt()
+            minorApiLevel = libs.versions.sdkMinor.get().toInt()
         }
     }
 
@@ -96,11 +96,9 @@ android {
                 enableSplit = false
             }
         }
-    }
 
-    testOptions {
-        unitTests {
-            isIncludeAndroidResources = true
+        dex {
+            useLegacyPackaging = false
         }
     }
 

@@ -29,6 +29,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.material3.contentColorFor
+import androidx.compose.material3.rememberSliderState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -47,7 +48,6 @@ import com.arn.scrobble.R
 import com.arn.scrobble.api.AccountType
 import com.arn.scrobble.icons.Check
 import com.arn.scrobble.icons.Icons
-import com.arn.scrobble.navigation.enumSaver
 import com.arn.scrobble.pref.WidgetPrefs
 import com.arn.scrobble.ui.ButtonWithDropdown
 import com.arn.scrobble.ui.LabeledCheckbox
@@ -74,7 +74,7 @@ fun ChartsWidgetConfigScreen(
     onCancel: () -> Unit,
 ) {
 
-    var period by rememberSaveable(saver = enumSaver()) { mutableStateOf(prefs.period) }
+    var period by rememberSaveable { mutableStateOf(prefs.period) }
     var bgAlpha by rememberSaveable { mutableFloatStateOf(prefs.bgAlpha) }
     var shadow by rememberSaveable { mutableStateOf(prefs.shadow) }
     var images by rememberSaveable { mutableStateOf(prefs.images) }
@@ -206,11 +206,18 @@ fun ChartsWidgetConfigScreen(
                                     ": ${"%.0f".format(bgAlpha * 100)}%",
                             style = MaterialTheme.typography.titleMedium
                         )
-                        Slider(
+
+                        val sliderState = rememberSliderState(
                             value = bgAlpha,
-                            onValueChange = { bgAlpha = it },
-                            valueRange = 0f..1f,
+                            trackRange = 0f..1f,
                             steps = 100,
+                        )
+                        Slider(
+                            state = sliderState,
+                            onValueChange = {
+                                sliderState.value = it
+                                bgAlpha = it
+                            },
                         )
                     }
 
@@ -315,7 +322,7 @@ private fun WidgetPreview(
                     ?.setShowImages(images)
             },
             onReset = {
-                
+
             },
             modifier = modifier
                 .padding(horizontal = 16.dp)

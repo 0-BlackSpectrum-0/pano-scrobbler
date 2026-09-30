@@ -1,2 +1,3 @@
-- Language selector in artist, album, track and tag wiki
-- Fixed webview not loading on Windows
+- Can disable scrobbling per-service
+- Bug fixes
+- Translation updates by the translators on Crowdin

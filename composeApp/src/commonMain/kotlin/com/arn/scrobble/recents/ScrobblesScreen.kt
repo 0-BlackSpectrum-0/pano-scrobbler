@@ -62,11 +62,11 @@ import com.arn.scrobble.ui.PanoDropdownMenu
 import com.arn.scrobble.ui.PanoLazyColumn
 import com.arn.scrobble.ui.PanoPullToRefreshStateForTab
 import com.arn.scrobble.ui.emptyText
+import com.arn.scrobble.utils.LocaleUtils.format
 import com.arn.scrobble.utils.PanoTimeFormatter
 import com.arn.scrobble.utils.PlatformStuff
 import com.arn.scrobble.utils.Stuff
 import com.arn.scrobble.utils.Stuff.collectAsStateWithInitialValue
-import com.arn.scrobble.utils.Stuff.format
 import com.arn.scrobble.utils.Stuff.timeToLocal
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -131,7 +131,7 @@ fun ScrobblesScreen(
     var scrollToTopOnLoad by rememberSaveable { mutableStateOf(true) }
     var expandedKey by rememberSaveable { mutableStateOf<String?>(null) }
     var lastHandledExpandedKey by rememberSaveable { mutableStateOf(expandedKey) }
-    var canExpandNowPlaying by rememberSaveable { mutableStateOf(true) }
+    val autoExpandNowPlaying by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { it.autoExpandNowPlaying }
     var timeJumpMenuShown by rememberSaveable { mutableStateOf(false) }
     val pendingScrobblesHeader =
         stringResource(Res.string.pending_scrobbles) + ": " + pendingScrobblesCount
@@ -238,21 +238,19 @@ fun ScrobblesScreen(
         )
 
         // expand now playing
-        if (tracks.loadState.refresh is LoadState.NotLoading) {
-            if (canExpandNowPlaying && tracks.itemCount > 0 &&
-                (tracks.peek(0) as? TrackWrapper.TrackItem)?.track?.isNowPlaying == true
-            ) {
-                val newKey = tracks.peek(0)?.key
+        if (tracks.loadState.refresh is LoadState.NotLoading && autoExpandNowPlaying && tracks.itemCount > 0 &&
+            (tracks.peek(0) as? TrackWrapper.TrackItem)?.track?.isNowPlaying == true
+        ) {
+            val newKey = tracks.peek(0)?.key
 
-                val newExpandedItemIsVisible = listState.layoutInfo.visibleItemsInfo.find {
-                    it.key == newKey
-                } != null
+            val newExpandedItemIsVisible = listState.layoutInfo.visibleItemsInfo.find {
+                it.key == newKey
+            } != null
 
-                val isAlmostAtTop = listState.firstVisibleItemIndex < 5
+            val isAlmostAtTop = listState.firstVisibleItemIndex < 5
 
-                if (isAlmostAtTop || newExpandedItemIsVisible)
-                    expandedKey = newKey
-            }
+            if (isAlmostAtTop || newExpandedItemIsVisible)
+                expandedKey = newKey
         }
 
         if (tracks.loadState.isIdle && scrollToTopOnLoad) {
@@ -270,7 +268,7 @@ fun ScrobblesScreen(
 
     ResultEffect<PullToRefreshResult> {
         if (it.tab == PanoTab.Scrobbles || it.tab == PanoTab.ScrobblesNoSubtabs) {
-            if (tracks.loadState.refresh is LoadState.NotLoading) {
+            if (tracks.loadState.refresh !is LoadState.Loading) {
                 tracks.refresh()
             }
         }
@@ -298,7 +296,7 @@ fun ScrobblesScreen(
     ResultEffect<SubTabClickedResult> { res ->
         when (res.id) {
             PanoTab.Scrobbles.ScrobblesSubTabType.REFRESH.ordinal -> {
-                if (tracks.loadState.refresh is LoadState.NotLoading) {
+                if (tracks.loadState.refresh !is LoadState.Loading) {
                     tracks.refresh()
                     scrollToTopOnLoad = true
                 }
@@ -479,10 +477,21 @@ fun ScrobblesScreen(
                     canDelete = canEditOrDelete,
                     canHate = accountType == AccountType.LISTENBRAINZ,
                     expandedKey = { expandedKey },
-                    onExpand = {
-                        canExpandNowPlaying = !(expandedKey != null && it == null)
+                    onExpand = { key, isNowPlaying ->
+                        if (isNowPlaying) {
+                            val updatedAutoExpandNowPlaying = key != null
+                            if (updatedAutoExpandNowPlaying != autoExpandNowPlaying) {
+                                scope.launch {
+                                    PlatformStuff.mainPrefs.updateData {
+                                        it.copy(
+                                            autoExpandNowPlaying = updatedAutoExpandNowPlaying
+                                        )
+                                    }
+                                }
+                            }
+                        }
 
-                        expandedKey = it
+                        expandedKey = key
                     },
                     onNavigate = onNavigate,
                     isLandscape = { isLandscape },

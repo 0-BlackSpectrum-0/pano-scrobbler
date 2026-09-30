@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
@@ -16,7 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSerializable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,7 +36,6 @@ import com.arn.scrobble.icons.Icons
 import com.arn.scrobble.icons.Mic
 import com.arn.scrobble.icons.MusicNote
 import com.arn.scrobble.navigation.SelectedPackagesResult
-import com.arn.scrobble.navigation.jsonSerializableSaver
 import com.arn.scrobble.panoicons.AlbumArtist
 import com.arn.scrobble.panoicons.PanoIcons
 import com.arn.scrobble.pref.AppItem
@@ -63,11 +63,11 @@ fun RegexEditsTestScreen(
     viewModel: RegexEditsTestVM = viewModel { RegexEditsTestVM() },
 ) {
     val regexMatches by viewModel.regexResults.collectAsStateWithLifecycle()
-    var appItem by rememberSaveable(saver = jsonSerializableSaver<AppItem?>()) { mutableStateOf(null) }
-    var track by rememberSaveable { mutableStateOf("") }
-    var album by rememberSaveable { mutableStateOf("") }
-    var artist by rememberSaveable { mutableStateOf("") }
-    var albumArtist by rememberSaveable { mutableStateOf("") }
+    var appItem by rememberSerializable { mutableStateOf<AppItem?>(null) }
+    val track = rememberTextFieldState()
+    val album = rememberTextFieldState()
+    val artist = rememberTextFieldState()
+    val albumArtist = rememberTextFieldState()
     val gotMatches = regexMatches?.scrobbleData != null || regexMatches?.blockPlayerAction != null
 
     ResultEffect<SelectedPackagesResult> { res ->
@@ -76,10 +76,10 @@ fun RegexEditsTestScreen(
 
     LaunchedEffect(track, album, artist, albumArtist, appItem) {
         val sd = ScrobbleData(
-            track = track,
-            album = album.ifEmpty { null },
-            artist = artist,
-            albumArtist = albumArtist.ifEmpty { null },
+            track = track.text.toString(),
+            album = album.text.toString().ifEmpty { null },
+            artist = artist.text.toString(),
+            albumArtist = albumArtist.text.toString().ifEmpty { null },
             timestamp = 0,
             duration = null,
             appId = appItem?.appId
@@ -92,42 +92,30 @@ fun RegexEditsTestScreen(
         modifier = modifier.padding(8.dp)
     ) {
         PanoOutlinedTextField(
-            value = track,
-            onValueChange = {
-                track = it
-            },
-            isError = track.isEmpty(),
+            track,
+            isError = track.text.isEmpty(),
             label = { Text(stringResource(Res.string.track)) },
             leadingIcon = { Icon(Icons.MusicNote, contentDescription = null) },
             keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Next),
             modifier = Modifier.fillMaxWidth()
         )
         PanoOutlinedTextField(
-            value = artist,
-            onValueChange = {
-                artist = it
-            },
-            isError = artist.isEmpty(),
+            artist,
+            isError = artist.text.isEmpty(),
             label = { Text(stringResource(Res.string.artist)) },
             leadingIcon = { Icon(Icons.Mic, contentDescription = null) },
             keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Next),
             modifier = Modifier.fillMaxWidth()
         )
         PanoOutlinedTextField(
-            value = album,
-            onValueChange = {
-                album = it
-            },
+            album,
             label = { Text(stringResource(Res.string.album)) },
             leadingIcon = { Icon(Icons.Album, contentDescription = null) },
             keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Next),
             modifier = Modifier.fillMaxWidth()
         )
         PanoOutlinedTextField(
-            value = albumArtist,
-            onValueChange = {
-                albumArtist = it
-            },
+            albumArtist,
             label = { Text(stringResource(Res.string.album_artist)) },
             leadingIcon = {
                 Icon(

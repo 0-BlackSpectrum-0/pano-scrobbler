@@ -60,13 +60,12 @@ import com.arn.scrobble.navigation.PanoRoute
 import com.arn.scrobble.navigation.TimePeriodClickedResult
 import com.arn.scrobble.navigation.TimePeriodDataResult
 import com.arn.scrobble.navigation.TimePeriodTypeClickedResult
-import com.arn.scrobble.navigation.jsonSerializableSaver
 import com.arn.scrobble.ui.PanoDropdownMenu
 import com.arn.scrobble.ui.myColors
 import com.arn.scrobble.ui.rememberClippedPainter
+import com.arn.scrobble.utils.LocaleUtils.format
 import com.arn.scrobble.utils.PlatformStuff
 import com.arn.scrobble.utils.Stuff.collectAsStateWithInitialValue
-import com.arn.scrobble.utils.Stuff.format
 import com.arn.scrobble.utils.Stuff.setMidnight
 import com.arn.scrobble.utils.Stuff.timeToLocal
 import com.arn.scrobble.utils.Stuff.timeToUTC
@@ -159,9 +158,7 @@ fun TimePeriodSelector(
     val selectedPeriod by viewModel.selectedPeriod.collectAsStateWithLifecycle()
     val refreshCount by viewModel.refreshCount.collectAsStateWithLifecycle()
     val periodTypeToRegisteredTime by viewModel.periodTypeToRegisteredTime.collectAsStateWithLifecycle()
-    var dropdownTypeShown by rememberSaveable(saver = jsonSerializableSaver<TimePeriodType?>()) {
-        mutableStateOf(null)
-    }
+    var dropdownTypeShown by rememberSaveable { mutableStateOf<TimePeriodType?>(null) }
     val accountType by PlatformStuff.mainPrefs.data.collectAsStateWithInitialValue { it.currentAccountType }
     var typeSelectorShown by remember { mutableStateOf<Boolean?>(false) }
     var selectedPeriodOffset by remember { mutableStateOf(DpOffset.Zero) }

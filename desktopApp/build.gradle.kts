@@ -132,8 +132,8 @@ if (IS_LINUX) {
         inputs.dir(layout.buildDirectory.dir("native/$RESOURCES_DIR_NAME"))
         inputs.file(layout.projectDirectory.file("package-for-linux.sh"))
         outputs.files(
-            layout.projectDirectory.file("../dist/$APP_NAME_NO_SPACES-$RESOURCES_DIR_NAME.tar.gz"),
-            layout.projectDirectory.file("../dist/$APP_NAME_NO_SPACES-$RESOURCES_DIR_NAME.flatpak"),
+            layout.projectDirectory.file("../dist/$APP_NAME_NO_SPACES-$RESOURCES_DIR_NAME.tar.zst"),
+            layout.projectDirectory.file("../dist/$APP_NAME_NO_SPACES-$RESOURCES_DIR_NAME.deb"),
             layout.projectDirectory.file("../dist/$APP_NAME_NO_SPACES-$RESOURCES_DIR_NAME.AppImage")
         )
 
@@ -246,7 +246,7 @@ graalvmNative {
                     "-J-Dnative.encoding=UTF-8",
                     "-J-Dsun.java2d.dpiaware=true",
                     "--exact-reachability-metadata",
-                    "-H:MissingRegistrationReportingMode=Warn",
+                    "-R:MissingRegistrationReportingMode=Warn",
                     "-R:MaxHeapSize=300M",
                     "--initialize-at-build-time=kotlin.text.Charsets",
                     "-H:+AddAllCharsets",
