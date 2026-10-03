@@ -7,34 +7,24 @@ import io.ktor.client.request.parameter
 class ItunesRequester {
     private val client get() = Requesters.genericKtorClient
 
-    suspend fun searchTrack(
-        term: String,
-        country: String,
-        lang: String? = null,
-        limit: Int
+    suspend fun searchAlbum(
+        artist: String,
+        album: String,
+        limit: Int = 3
     ) =
-        client.getResult<ItunesTrackResponse>("https://itunes.apple.com/search") {
-            parameter("term", term)
-            parameter("country", country)
-            parameter("media", "music")
-            parameter("entity", "musicTrack")
-            parameter("lang", lang)
+        client.getResult<ItunesSearchResponse>("https://itunes.apple.com/search") {
+            parameter("term", "$artist $album")
+            parameter("entity", "album")
             parameter("limit", limit)
         }
 
-    suspend fun lookupArtist(
-        artistId: Long,
+    suspend fun searchArtist(
+        artist: String,
+        limit: Int = 3
     ) =
-        client.getResult<ItunesArtistResponse>("https://itunes.apple.com/lookup") {
-            parameter("id", artistId)
+        client.getResult<ItunesArtistSearchResponse>("https://itunes.apple.com/search") {
+            parameter("term", artist)
             parameter("entity", "musicArtist")
-        }
-
-    suspend fun lookupTrack(
-        trackId: Long,
-    ) =
-        client.getResult<ItunesTrackResponse>("https://itunes.apple.com/lookup") {
-            parameter("id", trackId)
-            parameter("entity", "musicTrack")
+            parameter("limit", limit)
         }
 }

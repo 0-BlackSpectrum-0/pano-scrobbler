@@ -140,6 +140,8 @@ data class MainPrefs(
     val tidalSteelSeriesApi: Boolean = true,
     val deezerApi: Boolean = true,
     val deezerApiKey: String = "",
+    val itunesApi: Boolean = true,
+    val useMediaSessionArt: Boolean = true,
     val lastfmApiAlways: Boolean = false,
     private val logToFileOnAndroidSince: Long = -1,
     val lovesFetchedForCache: Boolean = false,
@@ -251,6 +253,8 @@ data class MainPrefs(
         val tidalSteelSeriesApi: Boolean = defaultMainPrefs.tidalSteelSeriesApi,
         val deezerApi: Boolean = defaultMainPrefs.deezerApi,
         val deezerApiKey: String = defaultMainPrefs.deezerApiKey,
+        val itunesApi: Boolean = defaultMainPrefs.itunesApi,
+        val useMediaSessionArt: Boolean = defaultMainPrefs.useMediaSessionArt,
         val lastfmApiAlways: Boolean = defaultMainPrefs.lastfmApiAlways,
         val discordRpc: DiscordRpcPrefs = defaultMainPrefs.discordRpc,
     )

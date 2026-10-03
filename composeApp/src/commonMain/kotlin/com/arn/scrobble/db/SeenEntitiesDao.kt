@@ -178,7 +178,7 @@ interface SeenEntitiesDao {
             val trackId = trackIds[idKey(item.artist.name.norm(), item.name.norm())] ?: continue
             val albumId = albumIds[idKey(albumArtist, albumName)] ?: continue
 
-            resolved.add(Resolved(trackId, albumId, item.album.image?.medium, item.userloved))
+            resolved.add(Resolved(trackId, albumId, item.album.image?.medium ?: item.artUrl, item.userloved))
         }
 
         // updateAlbumArtIfMissing is still per-row SQL

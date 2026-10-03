@@ -22,7 +22,10 @@ import pano_scrobbler.composeapp.generated.resources.api_key_not_configured
 import pano_scrobbler.composeapp.generated.resources.cancel
 import pano_scrobbler.composeapp.generated.resources.deezer
 import pano_scrobbler.composeapp.generated.resources.deezer_api_desc
-import pano_scrobbler.composeapp.generated.resources.deezer_api_key_hint
+import pano_scrobbler.composeapp.generated.resources.itunes
+import pano_scrobbler.composeapp.generated.resources.itunes_api_desc
+import pano_scrobbler.composeapp.generated.resources.pref_media_session_art
+import pano_scrobbler.composeapp.generated.resources.pref_media_session_art_desc
 import pano_scrobbler.composeapp.generated.resources.enable_api
 import pano_scrobbler.composeapp.generated.resources.save
 import pano_scrobbler.composeapp.generated.resources.spotify
@@ -232,10 +235,11 @@ fun PrefsScreen(
     mainPrefs.data.collectAsStateWithInitialValue { it.spotifyCountryP }
     val deezerApi by
     mainPrefs.data.collectAsStateWithInitialValue { it.deezerApi }
-    val deezerApiKey by
-    mainPrefs.data.collectAsStateWithInitialValue { it.deezerApiKey }
+    val itunesApi by
+    mainPrefs.data.collectAsStateWithInitialValue { it.itunesApi }
+    val useMediaSessionArt by
+    mainPrefs.data.collectAsStateWithInitialValue { it.useMediaSessionArt }
     var showSpotifyDialog by remember { mutableStateOf(false) }
-    var showDeezerDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val extractFirstArtistPackages by
     mainPrefs.data.collectAsStateWithInitialValue { it.extractFirstArtistPackages }
@@ -1067,17 +1071,38 @@ fun PrefsScreen(
             "deezer_service",
             Res.string.deezer
         ) { title ->
-            TextPref(
+            SwitchPref(
                 text = title,
-                summary = if (deezerApi) {
-                    stringResource(Res.string.deezer_api_desc)
-                } else {
-                    stringResource(Res.string.disable)
-                },
-                onClick = {
-                    showDeezerDialog = true
-                }
+                summary = stringResource(Res.string.deezer_api_desc),
+                value = deezerApi,
+                copyToSave = { copy(deezerApi = it) }
             )
+        }
+
+        filteredItem(
+            "itunes_service",
+            Res.string.itunes
+        ) { title ->
+            SwitchPref(
+                text = title,
+                summary = stringResource(Res.string.itunes_api_desc),
+                value = itunesApi,
+                copyToSave = { copy(itunesApi = it) }
+            )
+        }
+
+        if (!PlatformStuff.isDesktop) {
+            filteredItem(
+                "media_session_art",
+                Res.string.pref_media_session_art
+            ) { title ->
+                SwitchPref(
+                    text = title,
+                    summary = stringResource(Res.string.pref_media_session_art_desc),
+                    value = useMediaSessionArt,
+                    copyToSave = { copy(useMediaSessionArt = it) }
+                )
+            }
         }
 
         filteredItem(key = "delete", Res.string.delete_account) { title ->
@@ -1324,75 +1349,6 @@ fun PrefsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showSpotifyDialog = false }) {
-                    Text(stringResource(Res.string.cancel))
-                }
-            }
-        )
-    }
-
-    if (showDeezerDialog) {
-        val apiKeyInputState = rememberTextFieldState(deezerApiKey)
-        var enableApi by remember(deezerApi) { mutableStateOf(deezerApi) }
-
-        AlertDialog(
-            onDismissRequest = { showDeezerDialog = false },
-            title = {
-                Text(stringResource(Res.string.deezer))
-            },
-            text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        stringResource(Res.string.deezer_api_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    PanoOutlinedTextField(
-                        state = apiKeyInputState,
-                        label = { Text(stringResource(Res.string.deezer_api_key_hint)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            stringResource(Res.string.enable_api),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Switch(
-                            checked = enableApi,
-                            onCheckedChange = { enableApi = it }
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val apiKey = apiKeyInputState.text.toString().trim()
-                        coroutineScope.launch {
-                            mainPrefs.updateData {
-                                it.copy(
-                                    deezerApiKey = apiKey,
-                                    deezerApi = enableApi
-                                )
-                            }
-                        }
-                        showDeezerDialog = false
-                    }
-                ) {
-                    Text(stringResource(Res.string.save))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeezerDialog = false }) {
                     Text(stringResource(Res.string.cancel))
                 }
             }

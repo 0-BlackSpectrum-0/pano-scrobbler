@@ -217,6 +217,7 @@ class PlayingTrackInfo(
         timestamp = playStartTime,
         duration = durationMillis.takeIf { it > 0 },
         appId = appId,
+        artUrl = artUrlState.url,
     )
 
     fun toTrackPlayingEvent() = PlayingTrackNotifyEvent.TrackPlaying(

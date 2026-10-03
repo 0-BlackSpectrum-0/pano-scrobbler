@@ -368,4 +368,7 @@
     <string name="api_key_configured">設定済み</string>
     <string name="api_key_not_configured">未設定</string>
     <string name="enable_api">APIを有効化</string>
+    <string name="itunes_api_desc">Apple Musicで不足しているアルバムカバーを検索（キー不要）</string>
+    <string name="pref_media_session_art">メディアセッションアート</string>
+    <string name="pref_media_session_art_desc">現在再生中の音楽アプリからアルバムアートを使用</string>
 </resources>

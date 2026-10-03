@@ -251,8 +251,12 @@ object Requesters {
                     resp.parseJsonBody<T>()
                 Result.success(body)
             } catch (e: SerializationException) {
-                val errorResponse = resp.parseJsonBody<ApiErrorResponse>()
-                throw ApiException(errorResponse.code, errorResponse.message)
+                val errorResponse = runCatching { resp.parseJsonBody<ApiErrorResponse>() }.getOrNull()
+                if (errorResponse != null && errorResponse.code != 0) {
+                    throw ApiException(errorResponse.code, errorResponse.message)
+                } else {
+                    throw ApiException(-1, resp.bodyAsText().take(200).ifEmpty { e.message.orEmpty() })
+                }
             }
         }
     } catch (e: CancellationException) {
@@ -278,8 +282,12 @@ object Requesters {
                     resp.parseJsonBody<T>()
                 Result.success(body)
             } catch (e: SerializationException) {
-                val errorResponse = resp.parseJsonBody<ApiErrorResponse>()
-                throw ApiException(errorResponse.code, errorResponse.message)
+                val errorResponse = runCatching { resp.parseJsonBody<ApiErrorResponse>() }.getOrNull()
+                if (errorResponse != null && errorResponse.code != 0) {
+                    throw ApiException(errorResponse.code, errorResponse.message)
+                } else {
+                    throw ApiException(-1, resp.bodyAsText().take(200).ifEmpty { e.message.orEmpty() })
+                }
             }
         }
     } catch (e: CancellationException) {
@@ -326,8 +334,12 @@ object Requesters {
                 )
                 Result.success(pr)
             } catch (e: SerializationException) {
-                val errorResponse = resp.parseJsonBody<ApiErrorResponse>()
-                throw ApiException(errorResponse.code, errorResponse.message)
+                val errorResponse = runCatching { resp.parseJsonBody<ApiErrorResponse>() }.getOrNull()
+                if (errorResponse != null && errorResponse.code != 0) {
+                    throw ApiException(errorResponse.code, errorResponse.message)
+                } else {
+                    throw ApiException(-1, resp.bodyAsText().take(200).ifEmpty { e.message.orEmpty() })
+                }
             }
         }
     } catch (e: CancellationException) {

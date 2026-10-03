@@ -333,7 +333,7 @@ object ScrobbleEverywhere {
         if (!scrobbleData.album.isNullOrEmpty()) {
             PanoDb.db.getSeenEntitiesDao().saveRecentTracks(
                 listOf(scrobbleData.toTrack()),
-                mayHaveAlbumArt = false,
+                mayHaveAlbumArt = scrobbleData.artUrl != null,
                 savedLoved = false,
                 priority = SeenTrackAlbumAssociation.Priority.MEDIA_PLAYER
             )

@@ -466,4 +466,7 @@ Your purchases are managed by Google Play. They are linked with a Google Play ac
     <string name="api_key_configured">Configured</string>
     <string name="api_key_not_configured">Not configured</string>
     <string name="enable_api">Enable API</string>
+    <string name="itunes_api_desc">Search Apple Music for missing album covers (no key needed)</string>
+    <string name="pref_media_session_art">Media session art</string>
+    <string name="pref_media_session_art_desc">Use album art from the currently playing music app</string>
 </resources>

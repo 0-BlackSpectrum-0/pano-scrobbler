@@ -148,6 +148,8 @@ data class Track(
     override val msid: String? = null,
     @Transient
     val appId: String? = null, // used for FileScrobblable only
+    @Transient
+    val artUrl: String? = null,
     @Serializable(with = StringOrLongSerializer::class)
     override val listeners: Long? = null,
     @Serializable(with = StringOrLongSerializer::class)

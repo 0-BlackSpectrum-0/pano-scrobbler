@@ -36,11 +36,23 @@ class DeezerRequester {
         artist: String,
         album: String,
         limit: Int = 3
-    ) =
-        client.getResult<DeezerAlbumSearchResponse>("https://api.deezer.com/search/album") {
+    ): Result<DeezerAlbumSearchResponse> {
+        val structured = client.getResult<DeezerAlbumSearchResponse>("https://api.deezer.com/search/album") {
             parameter("q", "artist:\"$artist\" album:\"$album\"")
             parameter("limit", limit)
         }
+
+        // Fallback to plain text search if structured query returns no results
+        val structuredData = structured.getOrNull()
+        if (structuredData != null && structuredData.data.isNotEmpty()) {
+            return structured
+        }
+
+        return client.getResult<DeezerAlbumSearchResponse>("https://api.deezer.com/search/album") {
+            parameter("q", "$artist $album")
+            parameter("limit", limit)
+        }
+    }
 
     suspend fun lookupAlbum(
         albumId: Long

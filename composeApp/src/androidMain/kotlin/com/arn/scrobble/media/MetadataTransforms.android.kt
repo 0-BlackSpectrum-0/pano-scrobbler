@@ -1,8 +1,11 @@
 package com.arn.scrobble.media
 
+import android.graphics.Bitmap
 import android.media.MediaMetadata
 import com.arn.scrobble.utils.MetadataUtils
+import com.arn.scrobble.utils.PlatformStuff
 import com.arn.scrobble.utils.Stuff
+import java.io.File
 
 actual typealias PlatformMediaMetadata = MediaMetadata
 
@@ -145,6 +148,21 @@ actual fun transformMediaMetadata(
 //                    youtubeHeight > 0 && youtubeWidth > 0 && youtubeHeight == youtubeWidth
 //            )
 
+    val artUrl = metadata.getString(MediaMetadata.METADATA_KEY_ART_URI)?.trim()
+        ?.takeIf { it.startsWith("http") || it.startsWith("file:") || it.startsWith("content:") }
+        ?: metadata.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI)?.trim()
+            ?.takeIf { it.startsWith("http") || it.startsWith("file:") || it.startsWith("content:") }
+        ?: metadata.description?.iconUri?.toString()?.trim()
+            ?.takeIf { it.startsWith("http") || it.startsWith("file:") || it.startsWith("content:") }
+        ?: run {
+            val bitmap = runCatching {
+                metadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+                    ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_ART)
+                    ?: metadata.description?.iconBitmap
+            }.getOrNull()
+            bitmap?.let { saveBitmapToCache(it) }
+        }
+
     val metadataInfo = MetadataInfo(
         title = title,
         artist = artist,
@@ -152,11 +170,23 @@ actual fun transformMediaMetadata(
         albumArtist = albumArtist,
         trackNumber = trackNumber,
         duration = durationMillis,
-        artUrl = null,
+        artUrl = artUrl,
         normalizedUrlHost = null,
     )
 
     return metadataInfo to ignoreScrobble
 }
+
+private fun saveBitmapToCache(bitmap: Bitmap): String? = runCatching {
+    val hash = bitmap.hashCode().toUInt().toString(16)
+    val dir = File(PlatformStuff.cacheDir, "media_art").also { it.mkdirs() }
+    val file = File(dir, "$hash.jpg")
+    if (!file.exists() || file.length() == 0L) {
+        file.outputStream().use {
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 85, it)
+        }
+    }
+    file.toURI().toString()
+}.getOrNull()
 
 private const val METADATA_KEY_ADVERTISEMENT = "android.media.metadata.ADVERTISEMENT"

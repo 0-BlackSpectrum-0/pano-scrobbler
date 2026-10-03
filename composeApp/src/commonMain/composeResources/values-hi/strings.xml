@@ -267,4 +267,7 @@
     <string name="api_key_configured">कॉन्फ़िगर किया गया</string>
     <string name="api_key_not_configured">कॉन्फ़िगर नहीं किया गया</string>
     <string name="enable_api">एपीआई सक्षम करें</string>
+    <string name="itunes_api_desc">गायब एल्बम कवर के लिए Apple Music में खोजें (कुंजी की आवश्यकता नहीं)</string>
+    <string name="pref_media_session_art">मीडिया सत्र कला</string>
+    <string name="pref_media_session_art_desc">वर्तमान में चल रहे संगीत ऐप से एल्बम आर्ट का उपयोग करें</string>
 </resources>

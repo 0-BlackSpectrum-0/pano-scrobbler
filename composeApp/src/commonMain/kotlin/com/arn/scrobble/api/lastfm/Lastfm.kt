@@ -34,6 +34,8 @@ import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.setBody
 import io.ktor.client.request.url
+import io.ktor.client.statement.bodyAsText
+import kotlinx.serialization.decodeFromString
 import io.ktor.http.Cookie
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -589,11 +591,14 @@ open class LastFm(userAccount: UserAccountSerializable) : Scrobblable(userAccoun
                 }
 
                 if (response.status == HttpStatusCode.OK) {
-                    val success = response.parseJsonBody<DeleteScrobbleResponse>().result
+                    val bodyText = response.bodyAsText()
+                    val success = runCatching {
+                        Stuff.myJson.decodeFromString<DeleteScrobbleResponse>(bodyText).result
+                    }.getOrDefault(false)
 
                     // seems to return {"result": true} even for things that were already deleted
                     if (!success) {
-                        Logger.e { "LastfmUnscrobbler: error unscrobbling" }
+                        Logger.e { "LastfmUnscrobbler: error unscrobbling, response: ${bodyText.take(200)}" }
                         throw CookiesInvalidatedException(getString(Res.string.lastfm_reauth))
                     }
                 } else if (response.status == HttpStatusCode.Forbidden) {

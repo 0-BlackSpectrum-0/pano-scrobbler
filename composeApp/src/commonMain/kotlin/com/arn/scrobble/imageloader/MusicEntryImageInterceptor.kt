@@ -30,6 +30,8 @@ class MusicEntryImageInterceptor : Interceptor {
     private val spotifyArtistSearchApproximate by lazy { PlatformStuff.mainPrefs.data.map { it.spotifyArtistSearchApproximate } }
     private val useSpotify by lazy { PlatformStuff.mainPrefs.data.map { it.spotifyApi } }
     private val useDeezer by lazy { PlatformStuff.mainPrefs.data.map { it.deezerApi } }
+    private val useItunes by lazy { PlatformStuff.mainPrefs.data.map { it.itunesApi } }
+    private val useMediaSessionArt by lazy { PlatformStuff.mainPrefs.data.map { it.useMediaSessionArt } }
 
     override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
         val musicEntryImageReq =
@@ -333,6 +335,28 @@ class MusicEntryImageInterceptor : Interceptor {
 
                             if (deezerMatch != null) {
                                 fetchedAlbumImageUrls = FetchedImageUrls(deezerMatch.mediumImageUrl, deezerMatch.largeImageUrl)
+                            }
+                        }
+
+                        if ((fetchedAlbumImageUrls == null || fetchedAlbumImageUrls.mediumImage == null) && useItunes.first()) {
+                            val itunesAlbums = networkCallWithSemaphore {
+                                Requesters.itunesRequester.searchAlbum(artist.name, album.name, limit = 3)
+                            }?.map { it.results }?.recover { emptyList() }?.getOrNull()
+
+                            val itunesMatch = itunesAlbums?.find {
+                                it.collectionName.equals(album.name, ignoreCase = true) &&
+                                        it.artworkUrl100 != null
+                            } ?: itunesAlbums?.firstOrNull { it.artworkUrl100 != null }
+
+                            if (itunesMatch != null) {
+                                fetchedAlbumImageUrls = FetchedImageUrls(itunesMatch.mediumImageUrl, itunesMatch.largeImageUrl)
+                            }
+                        }
+
+                        if ((fetchedAlbumImageUrls == null || fetchedAlbumImageUrls.mediumImage == null) && useMediaSessionArt.first()) {
+                            val trackArtUrl = (entry as? Track)?.artUrl
+                            if (trackArtUrl != null) {
+                                fetchedAlbumImageUrls = FetchedImageUrls(trackArtUrl)
                             }
                         }
                     }
