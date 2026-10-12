@@ -1,5 +1,6 @@
 package com.arn.scrobble.automation
 
+import com.arn.scrobble.BuildKonfig
 import com.arn.scrobble.billing.LicenseState
 import com.arn.scrobble.media.PlayingTrackNotifyEvent
 import com.arn.scrobble.media.notifyPlayingTrackEvent
@@ -24,7 +25,7 @@ object Automation {
     const val ANDROID_NOW_PLAYING = "now-playing"
     const val ANDROID_REQUEST_REBIND = "request-rebind"
 
-    const val PREFIX = "com.arn.scrobble.automation"
+    val PREFIX get() = "${BuildKonfig.APP_ID}.automation"
 
     fun executeAction(
         command: String,

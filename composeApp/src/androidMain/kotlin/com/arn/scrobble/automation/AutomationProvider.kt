@@ -42,15 +42,24 @@ class AutomationProvider : ContentProvider() {
         selectionArgs: Array<out String?>?,
         sortOrder: String?
     ): Cursor {
-        val callingPackage = callingPackage ?: return createCursor(false)
         val command = uri.pathSegments?.first() ?: return createCursor(false)
         val arg = uri.pathSegments.getOrNull(1)
 
-        if (command == Automation.ANDROID_NOW_PLAYING && callingPackage == BuildKonfig.APP_ID) {
-            return nowPlayingDataCursor()
-        } else if (command == Automation.ANDROID_REQUEST_REBIND && callingPackage == BuildKonfig.APP_ID) {
-            return requestRebind()
+        if (command == Automation.ANDROID_NOW_PLAYING) {
+            return if (callingPackage == BuildKonfig.APP_ID) {
+                nowPlayingDataCursor()
+            } else {
+                MatrixCursor(arrayOf("result"))
+            }
+        } else if (command == Automation.ANDROID_REQUEST_REBIND) {
+            return if (callingPackage == BuildKonfig.APP_ID) {
+                requestRebind()
+            } else {
+                MatrixCursor(arrayOf("result"))
+            }
         }
+
+        val callingPackage = callingPackage ?: return createCursor(false)
 
         val wasSuccessful = Automation.executeAction(
             command,

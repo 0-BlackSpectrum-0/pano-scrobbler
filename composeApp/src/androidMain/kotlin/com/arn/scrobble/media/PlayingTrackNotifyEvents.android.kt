@@ -3,6 +3,7 @@ package com.arn.scrobble.media
 import android.os.CancellationSignal
 import android.os.OperationCanceledException
 import androidx.core.net.toUri
+import co.touchlab.kermit.Logger
 import com.arn.scrobble.automation.Automation
 import com.arn.scrobble.utils.AndroidStuff
 import com.arn.scrobble.utils.Stuff
@@ -39,32 +40,33 @@ actual fun getNowPlayingFromMainProcess(): PlayingTrackNotifyEvent.TrackPlaying?
     }
 
     val cursor = try {
-        cr.query(
-            "content://${Automation.PREFIX}/${Automation.ANDROID_NOW_PLAYING}".toUri(),
-            null,
-            null,
-            null,
-            null,
-            cancellationSignal
-        ).also {
+        try {
+            cr.query(
+                "content://${Automation.PREFIX}/${Automation.ANDROID_NOW_PLAYING}".toUri(),
+                null,
+                null,
+                null,
+                null,
+                cancellationSignal
+            )
+        } finally {
             cancelJob.cancel()
         }
     } catch (e: OperationCanceledException) {
         null
+    } catch (e: Exception) {
+        Logger.w(e) { "now-playing query failed" }
+        null
     } ?: return null
 
-    while (cursor.moveToNext()) {
-        val trackPlayingIdx = cursor.getColumnIndex("result")
-
-        if (trackPlayingIdx != -1) {
-            val event = cursor.getString(trackPlayingIdx)
-            if (event != null) {
-                cursor.close()
-                return Stuff.myJson.decodeFromString<PlayingTrackNotifyEvent.TrackPlaying>(event)
-            }
+    return cursor.use { c ->
+        val idx = c.getColumnIndex("result")
+        if (idx == -1) return@use null
+        while (c.moveToNext()) {
+            val event = c.getString(idx) ?: continue
+            val parsed = parseNowPlayingResult(event)
+            if (parsed != null) return@use parsed
         }
+        null
     }
-
-    cursor.close()
-    return null
 }

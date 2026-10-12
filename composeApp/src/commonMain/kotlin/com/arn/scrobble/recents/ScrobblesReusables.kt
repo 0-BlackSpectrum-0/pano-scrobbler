@@ -667,7 +667,8 @@ fun LazyListScope.scrobblesListItems(
                                     hash = null
                                     osd = sd
                                 } else {
-                                    val trackPlaying = getNowPlayingFromMainProcess()
+                                    // TODO: move getNowPlayingFromMainProcess off-main thread (e.g. remembered value when menu opens) to avoid blocking composition
+                                    val trackPlaying = runCatching { getNowPlayingFromMainProcess() }.getOrNull()
                                     if (trackPlaying != null) {
                                         osd = trackPlaying.origScrobbleData
                                         sd = trackPlaying.scrobbleData

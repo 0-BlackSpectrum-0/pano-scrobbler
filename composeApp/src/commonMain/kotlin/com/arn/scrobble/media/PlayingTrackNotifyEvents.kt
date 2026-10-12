@@ -1,5 +1,6 @@
 package com.arn.scrobble.media
 
+import co.touchlab.kermit.Logger
 import com.arn.scrobble.api.ScrobbleEverywhere
 import com.arn.scrobble.api.lastfm.ScrobbleData
 import com.arn.scrobble.billing.LicenseState
@@ -304,3 +305,11 @@ suspend fun listenForPlayingTrackEvents(
 expect fun notifyPlayingTrackEvent(event: PlayingTrackNotifyEvent)
 
 expect fun getNowPlayingFromMainProcess(): PlayingTrackNotifyEvent.TrackPlaying?
+
+fun parseNowPlayingResult(raw: String?): PlayingTrackNotifyEvent.TrackPlaying? {
+    if (raw == null || !raw.startsWith("{")) return null
+    return runCatching {
+        Stuff.myJson.decodeFromString<PlayingTrackNotifyEvent.TrackPlaying>(raw)
+    }.onFailure { Logger.w(it) { "now-playing decode failed" } }.getOrNull()
+}
+

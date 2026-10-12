@@ -44,11 +44,12 @@ android {
             abiFilters.add("arm64-v8a")
         }
 //        ndkVersion = "29.0.14206865"
+        resValue("string", "app_package_id", APP_ID)
     }
 
     buildFeatures {
         aidl = false
-        resValues = false
+        resValues = true
         shaders = false
     }
 
