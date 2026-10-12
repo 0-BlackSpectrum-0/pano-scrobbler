@@ -466,7 +466,7 @@
     ],
     "expected": {
       "artist": "Artist",
-      "track": "Track "
+      "track": "Track"
     }
   },
   {
@@ -506,7 +506,7 @@
     ],
     "expected": {
       "artist": "Artist",
-      "track": "Track "
+      "track": "Track"
     }
   },
   {
@@ -585,8 +585,8 @@
       "Artist -Track-【Official Video】"
     ],
     "expected": {
-      "artist": "Artist ",
-      "track": "Track【Official Video】"
+      "artist": "Artist -Track",
+      "track": "Official Video"
     }
   },
   {

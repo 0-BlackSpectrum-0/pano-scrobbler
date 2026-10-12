@@ -21,13 +21,14 @@ import com.arn.scrobble.utils.Stuff
 import com.arn.scrobble.utils.Stuff.stateInWithCache
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import pano_scrobbler.composeapp.generated.resources.Res
 import pano_scrobbler.composeapp.generated.resources.mute
 import pano_scrobbler.composeapp.generated.resources.skip
+import java.util.Objects
 
 class SessListener(
     scope: CoroutineScope,
@@ -57,20 +58,24 @@ class SessListener(
     init {
         scope.launch {
             combine(
+                scrobblerEnabled, // also done in NLService
                 allowedPackages,
                 blockedPackages,
                 autoDetectApps,
-                temporaryScrobblePackages,
-                scrobblerEnabled, // also done in NLService
-            ) { _, _, _, _, _ ->
-                onActiveSessionsChanged(platformControllers)
-                val tokensToKeep = sessionTrackers
-                    .filter { (k, v) ->
-                        shouldScrobble(v.trackInfo.appId)
-                    }
-                    .keys
-                removeSessions(tokensToKeep)
-            }.collect()
+                temporaryScrobblePackages, // fork: re-evaluate sessions when the temp list changes
+            ) { scrobblerEnabled, allowed, blocked, autoDetect, temporary ->
+                Objects.hash(scrobblerEnabled, allowed, blocked, autoDetect, temporary)
+            }
+                .distinctUntilChanged()
+                .collect {
+                    onActiveSessionsChanged(platformControllers)
+                    val tokensToKeep = sessionTrackers
+                        .filter { (k, v) ->
+                            shouldScrobble(v.trackInfo.appId)
+                        }
+                        .keys
+                    removeSessions(tokensToKeep)
+                }
         }
     }
 
