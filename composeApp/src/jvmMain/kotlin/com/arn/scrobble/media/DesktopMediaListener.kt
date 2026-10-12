@@ -173,7 +173,7 @@ class DesktopMediaListener(
             playbackInfo.state == CommonPlaybackState.Playing &&
             playbackInfo.position == 0L
         ) {
-            Logger.i { "ignoring duration<=0, position=0" }
+            Logger.i { "ignoring duration<=0, position=0 for appId=${sessionTracker.trackInfo.appId}" }
             return
         }
 

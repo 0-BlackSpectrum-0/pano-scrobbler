@@ -128,7 +128,7 @@ suspend fun listenForPlayingTrackEvents(
                 PanoNotifications.notifyError(event)
 
                 if (event.scrobbleError.canFixMetadata) {
-                    scrobbleQueue.remove(event.hash)
+                    scrobbleQueue.remove(event.hash, "errorFixMetadata")
                     mediaListener.findTrackerByHash(event.hash)?.trackInfo?.scrobbled()
                 }
             }
@@ -171,7 +171,7 @@ suspend fun listenForPlayingTrackEvents(
                 tracker.ignoreScrobble()
 
                 if (scrobbleQueue.has(hash)) {
-                    scrobbleQueue.remove(hash)
+                    scrobbleQueue.remove(hash, "trackCancelled")
                 }
 
 
@@ -198,7 +198,7 @@ suspend fun listenForPlayingTrackEvents(
                         }
 
                         PlayingTrackNotifyEvent.TrackScrobbleLocked.LockState.SCROBBLED -> {
-                            scrobbleQueue.remove(event.hash)
+                            scrobbleQueue.remove(event.hash, "trackScrobbled")
                             val trackInfo = mediaListener.findTrackerByHash(event.hash)?.trackInfo
 
                             if (trackInfo != null) {

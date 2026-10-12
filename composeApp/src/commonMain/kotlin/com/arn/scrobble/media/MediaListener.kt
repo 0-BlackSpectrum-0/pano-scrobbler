@@ -78,6 +78,7 @@ abstract class MediaListener(
         val holderKey = scrobbleLockKey
 
         if (holderKey == null || holderKey == requesterKey) {
+            Logger.d { "claimScrobbleLock: won lock (uncontested) for requesterKey=$requesterKey" }
             scrobbleLockKey = requesterKey
             onWon()
             return
@@ -87,6 +88,7 @@ abstract class MediaListener(
 
         if (holder == null || !holder.trackInfo.isEligibleForScrobble()) {
             // stale holder, take over outright
+            Logger.d { "claimScrobbleLock: won lock (stale holder $holderKey) for requesterKey=$requesterKey" }
             scrobbleLockKey = requesterKey
             onWon()
             return
@@ -200,7 +202,7 @@ abstract class MediaListener(
         fun scrobble() {
             Logger.d { "playing: timePlayed=${trackInfo.timePlayed} title=${trackInfo.title} hash=${trackInfo.hash.toHexString()}" }
 
-            scrobbleQueue.remove(trackInfo.lastScrobbleHash)
+            scrobbleQueue.remove(trackInfo.lastScrobbleHash, "newPlayStarted")
 
             // if another player tried to scrobble, unmute whatever was muted
             // if self was muted, clear the muted hash too
@@ -231,7 +233,7 @@ abstract class MediaListener(
                     )
                 },
                 onLost = { winnerTrackInfo ->
-                    scrobbleQueue.remove(trackInfo.hash)
+                    scrobbleQueue.remove(trackInfo.hash, "lockContentionLost")
                     if (winnerTrackInfo.notiKey != trackInfo.notiKey)
                         PanoNotifications.removeNotificationByKey(trackInfo.notiKey)
                 },
@@ -302,7 +304,7 @@ abstract class MediaListener(
 
         fun ignoreScrobble() {
             // scrobbling may have already started from onMetadataChanged
-            scrobbleQueue.remove(trackInfo.lastScrobbleHash)
+            scrobbleQueue.remove(trackInfo.lastScrobbleHash, "ignoreScrobble")
             PanoNotifications.removeNotificationByKey(trackInfo.notiKey)
             trackInfo.cancelled()
             // do not scrobble again
@@ -423,7 +425,7 @@ abstract class MediaListener(
             }
             trackInfo.paused()
 
-            scrobbleQueue.remove(trackInfo.lastScrobbleHash)
+            scrobbleQueue.remove(trackInfo.lastScrobbleHash, "paused")
             PanoNotifications.removeNotificationByKey(trackInfo.notiKey)
             if (isMuted)
                 unmute(clearMutedHash = false)

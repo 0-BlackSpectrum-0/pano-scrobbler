@@ -3,14 +3,20 @@ package com.arn.scrobble.media
 import co.touchlab.kermit.Logger
 import com.arn.scrobble.api.AccountType
 import com.arn.scrobble.api.Scrobblable
+import com.arn.scrobble.api.Scrobblables
 import com.arn.scrobble.api.ScrobbleEverywhere
 import com.arn.scrobble.api.ScrobbleResult
 import com.arn.scrobble.api.lastfm.ScrobbleData
 import com.arn.scrobble.db.BlockedMetadata
+import com.arn.scrobble.db.PanoDb
+import com.arn.scrobble.api.ScrobbleEvent
 import com.arn.scrobble.utils.PanoNotifications
 import com.arn.scrobble.utils.PlatformStuff
 import com.arn.scrobble.utils.Stuff
+import com.arn.scrobble.utils.Stuff.stateInWithCache
 import com.arn.scrobble.utils.redactedMessage
+import com.arn.scrobble.work.PendingScrobblesWork
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,15 +26,51 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.compose.resources.getString
 import pano_scrobbler.composeapp.generated.resources.Res
 import pano_scrobbler.composeapp.generated.resources.parse_error
 import pano_scrobbler.composeapp.generated.resources.scrobble_ignored
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.min
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 
+fun needsTemporaryApproval(
+    isDesktop: Boolean,
+    appId: String,
+    temporaryPackages: Set<String>,
+    approvedHashes: Set<Int>,
+    hash: Int
+): Boolean {
+    val isTemporary = !isDesktop && appId in temporaryPackages
+    return isTemporary && hash !in approvedHashes
+}
+
+suspend fun executeScrobbleSubmission(
+    trackInfo: PlayingTrackInfo,
+    scrobbleSd: ScrobbleData,
+    submitAction: suspend (ScrobbleData) -> Unit,
+    persistPendingAction: suspend (Throwable) -> Unit
+): Boolean {
+    return try {
+        Logger.d { "submitting scrobble ${scrobbleSd.artist} - ${scrobbleSd.track} (${scrobbleSd.appId})" }
+        submitAction(scrobbleSd)
+        true
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Throwable) {
+        Logger.e(e) { "scrobble submission failed for ${trackInfo.artist} - ${trackInfo.title} (${trackInfo.appId})" }
+        try {
+            persistPendingAction(e)
+        } catch (pe: CancellationException) {
+            throw pe
+        } catch (pe: Throwable) {
+            Logger.e(pe) { "could not enqueue pending scrobble" }
+        }
+        false
+    }
+}
 
 class ScrobbleQueue(
     private val scope: CoroutineScope,
@@ -36,8 +78,9 @@ class ScrobbleQueue(
     // delays scrobbling this hash until it becomes null again
     private var lockedHash: Int? = null
 
-    private val temporaryApprovals = mutableMapOf<Int, CompletableDeferred<Boolean>>()
-    private val approvedTemporaryScrobbles = mutableSetOf<Int>()
+    private val temporaryApprovals = ConcurrentHashMap<Int, CompletableDeferred<Boolean>>()
+    private val approvedTemporaryScrobbles = ConcurrentHashMap.newKeySet<Int>()
+    private val temporaryScrobblePackages = PlatformStuff.mainPrefs.data.stateInWithCache(scope) { it.temporaryScrobblePackages }
 
     fun resolveTemporaryScrobble(hash: Int, approved: Boolean) {
         if (approved) {
@@ -45,7 +88,7 @@ class ScrobbleQueue(
             temporaryApprovals.remove(hash)?.complete(true)
         } else {
             temporaryApprovals.remove(hash)?.complete(false)
-            remove(hash)
+            remove(hash, "temporaryRejected")
         }
     }
 
@@ -58,7 +101,12 @@ class ScrobbleQueue(
 
     private fun prune() {
         scrobbleTasks.entries.removeAll { (hash, job) ->
-            job.isCancelled || job.isCompleted
+            val done = job.isCancelled || job.isCompleted
+            if (done) {
+                temporaryApprovals.remove(hash)?.cancel()
+                approvedTemporaryScrobbles.remove(hash)
+            }
+            done
         }
     }
 
@@ -171,20 +219,39 @@ class ScrobbleQueue(
 
             // launch it in a separate scope, so that it does not get cancelled
             scope.launch(Dispatchers.IO) {
-                val scrobbleSd = if (fetchAdditionalMetadata) {
-                    val additionalMetadata = ScrobbleEverywhere.fetchMissingMetadata(
-                        scrobbleData
-                    ) { true }
+                try {
+                    val scrobbleSd = if (fetchAdditionalMetadata) {
+                        val additionalMetadata = ScrobbleEverywhere.fetchMissingMetadata(
+                            scrobbleData
+                        ) { true }
 
-                    ScrobbleEverywhere.preprocessMetadata(
-                        additionalMetadata.scrobbleData ?: scrobbleData,
-                        trackInfo.normalizedUrlHost
-                    ).scrobbleData
-                } else {
-                    sd
+                        ScrobbleEverywhere.preprocessMetadata(
+                            additionalMetadata.scrobbleData ?: scrobbleData,
+                            trackInfo.normalizedUrlHost
+                        ).scrobbleData
+                    } else {
+                        sd
+                    }
+
+                    executeScrobbleSubmission(
+                        trackInfo = trackInfo,
+                        scrobbleSd = scrobbleSd,
+                        submitAction = { ScrobbleEverywhere.scrobble(it) },
+                        persistPendingAction = { e ->
+                            PanoDb.db.getPendingScrobblesDao().insert(
+                                trackInfo.toScrobbleData(false),
+                                ScrobbleEvent.scrobble,
+                                Scrobblables.all.filter { it.userAccount.canScrobble }.map { it.userAccount.type },
+                                listOf(e),
+                            )
+                            PendingScrobblesWork.schedule(false)
+                        }
+                    )
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    Logger.e(e) { "scrobble submission preprocessing failed for ${trackInfo.artist} - ${trackInfo.title} (${trackInfo.appId})" }
                 }
-
-                ScrobbleEverywhere.scrobble(scrobbleSd)
             }
 
             trackInfo.scrobbled()
@@ -194,10 +261,15 @@ class ScrobbleQueue(
             )
         }
 
-        val isTemporary = runBlocking {
-            PlatformStuff.mainPrefs.data.map { it.temporaryScrobblePackages }.first().contains(trackInfo.appId)
-        }
-        val needsApproval = isTemporary && !approvedTemporaryScrobbles.contains(hash)
+        val isTemporary = !PlatformStuff.isDesktop && trackInfo.appId in temporaryScrobblePackages.value
+        val needsApproval = needsTemporaryApproval(
+            isDesktop = PlatformStuff.isDesktop,
+            appId = trackInfo.appId,
+            temporaryPackages = temporaryScrobblePackages.value,
+            approvedHashes = approvedTemporaryScrobbles,
+            hash = hash
+        )
+        Logger.d { "queueing scrobble: hash=${hash.toHexString()}, appId=${trackInfo.appId}, delay=${delay}ms, isTemporary=$isTemporary, needsApproval=$needsApproval" }
 
         if (needsApproval) {
             val deferred = CompletableDeferred<Boolean>()
@@ -221,22 +293,26 @@ class ScrobbleQueue(
         prune()
         scrobbleTasks[trackInfo.hash]?.cancel()
         scrobbleTasks[trackInfo.hash] = scope.launch(Dispatchers.IO) {
-            if (needsApproval) {
-                val deferred = temporaryApprovals[hash]
-                val approved = deferred?.await() ?: false
-                if (!approved) {
-                    trackInfo.cancelled()
+            try {
+                if (needsApproval) {
+                    val deferred = temporaryApprovals[hash]
+                    val approved = withTimeoutOrNull(10.minutes) {
+                        deferred?.await()
+                    } ?: false
+                    if (!approved) {
+                        trackInfo.cancelled()
+                        PanoNotifications.removeNotificationByKey(trackInfo.notiKey)
+                        temporaryApprovals.remove(hash)
+                        return@launch
+                    }
                     PanoNotifications.removeNotificationByKey(trackInfo.notiKey)
-                    return@launch
-                }
-                PanoNotifications.removeNotificationByKey(trackInfo.notiKey)
-                notifyPlayingTrackEvent(
-                    trackInfo.toTrackPlayingEvent().copy(
-                        scrobbleData = scrobbleData,
-                        nowPlaying = true,
+                    notifyPlayingTrackEvent(
+                        trackInfo.toTrackPlayingEvent().copy(
+                            scrobbleData = scrobbleData,
+                            nowPlaying = true,
+                        )
                     )
-                )
-            }
+                }
 
             // some players put the previous song and then switch to the current song in like 150ms
             // potentially wasting an api call. sleep and throw cancellation exception in that case
@@ -326,8 +402,13 @@ class ScrobbleQueue(
                     )
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            Logger.e(e) { "scrobble job failed for ${trackInfo.artist} - ${trackInfo.title} (${trackInfo.appId})" }
         }
     }
+}
 
 
     private suspend fun notifyScrobbleError(
@@ -373,15 +454,16 @@ class ScrobbleQueue(
         }
     }
 
-    fun remove(hash: Int) {
+    fun remove(hash: Int, reason: String = "") {
         if (hash == lockedHash) {
-            Logger.d { "${hash.toHexString()} locked" }
+            Logger.d { "${hash.toHexString()} locked, reason: $reason" }
             return
         }
 
         temporaryApprovals.remove(hash)?.complete(false)
+        approvedTemporaryScrobbles.remove(hash)
         if (scrobbleTasks.remove(hash)?.cancel() != null) {
-            Logger.d { "${hash.toHexString()} cancelled" }
+            Logger.d { "${hash.toHexString()} cancelled, reason: $reason" }
         }
     }
 }

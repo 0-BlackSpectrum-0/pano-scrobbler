@@ -12,9 +12,11 @@ import com.arn.scrobble.updates.UpdateAction
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
+import co.touchlab.kermit.Logger
 import io.ktor.http.URLBuilder
 import io.ktor.http.URLParserException
 import io.ktor.http.maxAge
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -259,10 +261,13 @@ object Stuff {
 
     val appScope = CoroutineScope(
         SupervisorJob() +
-                if (PlatformStuff.isDesktop)
+                (if (PlatformStuff.isDesktop)
                     Dispatchers.Default // should not touch Swing for non UI tasks
                 else
-                    Dispatchers.Main.immediate
+                    Dispatchers.Main.immediate) +
+                CoroutineExceptionHandler { _, throwable ->
+                    Logger.e(throwable) { "uncaught in appScope" }
+                }
     )
 
     val countryCodesMap by lazy {

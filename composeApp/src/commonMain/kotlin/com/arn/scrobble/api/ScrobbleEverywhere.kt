@@ -23,6 +23,7 @@ import com.arn.scrobble.utils.FirstArtistExtractor
 import com.arn.scrobble.utils.PlatformStuff
 import com.arn.scrobble.utils.Stuff
 import com.arn.scrobble.utils.Stuff.mapConcurrently
+import com.arn.scrobble.utils.redactedMessage
 import com.arn.scrobble.work.PendingScrobblesWork
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -303,6 +304,10 @@ object ScrobbleEverywhere {
             .mapConcurrently(5) {
                 it to it.scrobble(scrobbleData)
             }.toMap()
+
+        scrobbleResults.forEach { (scrobblable, result) ->
+            Logger.d { "scrobble result for ${scrobblable.userAccount.type}: ${if (result.isSuccess) "success" else "${result.exceptionOrNull()?.let { it::class.simpleName }}: ${result.exceptionOrNull()?.redactedMessage}"}" }
+        }
 
         val pendingScrobblesDao = PanoDb.db.getPendingScrobblesDao()
 

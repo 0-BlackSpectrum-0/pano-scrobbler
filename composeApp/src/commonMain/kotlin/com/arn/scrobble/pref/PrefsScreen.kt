@@ -581,26 +581,28 @@ fun PrefsScreen(
             }
         }
 
-        filteredItem("temporary_scrobble_apps", Res.string.pref_scrobble_from) { _ ->
-            Column(Modifier.fillMaxWidth()) {
-                AppIconsPref(
-                    packageNames = temporaryScrobblePackages,
-                    title = "Ask for temporary scrobble, apps",
-                    onClick = {
-                        onNavigate(
-                            PanoRoute.AppList(
-                                saveType = AppListSaveType.TemporaryScrobble,
-                                preSelectedPackages = temporaryScrobblePackages.toList(),
-                                isSingleSelect = false,
+        if (!PlatformStuff.isDesktop) {
+            filteredItem("temporary_scrobble_apps", Res.string.pref_scrobble_from) { _ ->
+                Column(Modifier.fillMaxWidth()) {
+                    AppIconsPref(
+                        packageNames = temporaryScrobblePackages,
+                        title = "Ask for temporary scrobble, apps",
+                        onClick = {
+                            onNavigate(
+                                PanoRoute.AppList(
+                                    saveType = AppListSaveType.TemporaryScrobble,
+                                    preSelectedPackages = temporaryScrobblePackages.toList(),
+                                    isSingleSelect = false,
+                                )
                             )
-                        )
-                    }
-                )
-                Text(
-                    text = "ⓘ When these apps play, a silent notification asks whether to scrobble.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(ListItemDefaults.ContentPadding)
-                )
+                        }
+                    )
+                    Text(
+                        text = "ⓘ When these apps play, a silent notification asks whether to scrobble.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(ListItemDefaults.ContentPadding)
+                    )
+                }
             }
         }
 
